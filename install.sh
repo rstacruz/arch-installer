@@ -101,11 +101,12 @@ config__show_system_dialog() {
   whiptail \
     --backtitle "$INSTALLER_TITLE" \
     --title "Configure your system" \
+    --no-cancel \
     --no-shadow \
     --scrollbar \
     --ok-label "Change" \
     --extra-button \
-    --extra-label "Proceed" \
+    --extra-label "Next" \
     --menu "$message"\
     $(( $LINES - 12 )) $COLUMNS $(( $LINES - 12 )) \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
@@ -123,11 +124,12 @@ config__show_user_dialog() {
   whiptail \
     --backtitle "$INSTALLER_TITLE" \
     --title "Configure your user" \
+    --no-cancel \
     --no-shadow \
     --scrollbar \
     --ok-label "Change" \
     --extra-button \
-    --extra-label "Proceed" \
+    --extra-label "Next" \
     --menu "$message"\
     $(( $LINES - 12 )) 64 $(( $LINES - 12 )) \
     "Hostname" "[$HOSTNAME]" \
