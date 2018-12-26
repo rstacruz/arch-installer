@@ -82,14 +82,12 @@ set_keyboard_layout() {
 enable_ntp() {
   info "Enabling syncing clock via ntp"
   _ timedatectl set-ntp true
-
-
 }
 
 run_config() {
   config__show_system_dialog
   config__show_user_dialog
-  config__export_variables
+  run_confirm
 }
 
 config__show_system_dialog() {
@@ -103,12 +101,11 @@ config__show_system_dialog() {
     --title "Configure your system" \
     --no-cancel \
     --no-shadow \
-    --scrollbar \
     --ok-label "Change" \
     --extra-button \
     --extra-label "Next" \
     --menu "$message"\
-    $(( $LINES - 12 )) $COLUMNS $(( $LINES - 12 )) \
+    $(( $LINES - 12 )) $COLUMNS 3 \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
     "Locale" "[en_US.UTF-8]"
@@ -126,12 +123,11 @@ config__show_user_dialog() {
     --title "Configure your user" \
     --no-cancel \
     --no-shadow \
-    --scrollbar \
     --ok-label "Change" \
     --extra-button \
     --extra-label "Next" \
     --menu "$message"\
-    $(( $LINES - 12 )) 64 $(( $LINES - 12 )) \
+    $(( $LINES - 12 )) 64 4 \
     "Hostname" "[$HOSTNAME]" \
     "Your username" "[$PRIMARY_USERNAME]" \
     "Your password" "[password1]" \
@@ -164,6 +160,19 @@ Before we begin, a few things:
   whiptail \
     --backtitle "$INSTALLER_TITLE" \
     --title "Arch Installer" \
+    --no-shadow \
+    --scrollbar \
+    --msgbox "$message" \
+    18 64
+}
+
+run_confirm() {
+  message="
+  Confirm these details:
+  "
+  whiptail \
+    --backtitle "$INSTALLER_TITLE" \
+    --title "Confirm" \
     --no-shadow \
     --scrollbar \
     --msgbox "$message" \
