@@ -81,6 +81,8 @@ set_keyboard_layout() {
 enable_ntp() {
   info "Enabling syncing clock via ntp"
   _ timedatectl set-ntp true
+
+
 }
 
 run_config() {
@@ -106,5 +108,35 @@ run_config() {
     "Root password" "[password1]"
 }
 
+run_welcome() {
+  message="
+       .
+      /#\\
+     /###\\                     #     | *
+    /p^###\\      a##e #%' a#'e 6##%  | | |-^-. |   | \\ /
+   /##P^q##\\    .oOo# #   #    #  #  | | |   | |   |  X
+  /##(   )##\\   %OoO# #   %#e' #  #  | | |   | ^._.| / \\
+ /###P   q#,^\\
+/P^         ^q\\ Welcome to Arch Linux! Lets get started.
+  "
+  whiptail \
+    --title "Arch Installer" \
+    --msgbox "$message" \
+    20 64
+}
+
+# Router
+action="welcome"
+case "$action" in
+  config)
+    run_config
+    ;;
+  welcome)
+    run_welcome
+    ;;
+  *)
+    warn "Dunno"
+    ;;
+esac
 # Lets go
 run_config
