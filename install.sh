@@ -14,6 +14,7 @@ FS_ROOT="/dev/sda2"
 FS_EFI="/dev/sda1"
 
 DEFAULT_LOCALE="en_US.UTF-8"
+INSTALLER_TITLE="Welcome to Arch Linux"
 ARCH_MIRROR=""
 
 # Start doing stuff
@@ -86,26 +87,59 @@ enable_ntp() {
 }
 
 run_config() {
+  config__show_system_dialog
+  config__show_user_dialog
+  config__export_variables
+}
+
+config__show_system_dialog() {
   message="
   Welcome to Arch Linux!
   Configure your installation here, then hit 'Proceed'.
   "
   eval $(resize)
   whiptail \
-    --title "Arch Installer" \
+    --backtitle "$INSTALLER_TITLE" \
+    --title "Configure your system" \
     --no-shadow \
+    --scrollbar \
     --ok-label "Change" \
     --extra-button \
     --extra-label "Proceed" \
     --menu "$message"\
-    $LINES $COLUMNS $(( $LINES - 12 )) \
-    "Hostname" "[$HOSTNAME]" \
+    $(( $LINES - 12 )) $COLUMNS $(( $LINES - 12 )) \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
-    "Locale" "[en_US.UTF-8]" \
+    "Locale" "[en_US.UTF-8]"
+}
+
+config__show_user_dialog() {
+  message="
+  Your user
+
+  Tell me avout the user you wanna use.  This ie a configuration dialog with some text in it that explains whats going on.
+  "
+  eval $(resize)
+  whiptail \
+    --backtitle "$INSTALLER_TITLE" \
+    --title "Configure your user" \
+    --no-shadow \
+    --scrollbar \
+    --ok-label "Change" \
+    --extra-button \
+    --extra-label "Proceed" \
+    --menu "$message"\
+    $(( $LINES - 12 )) 64 $(( $LINES - 12 )) \
+    "Hostname" "[$HOSTNAME]" \
     "Your username" "[$PRIMARY_USERNAME]" \
     "Your password" "[password1]" \
     "Root password" "[password1]"
+}
+
+
+
+config__export_variables() {
+  echo HOSTNAME="$HOSTNAME"
 }
 
 run_welcome() {
@@ -118,11 +152,20 @@ run_welcome() {
   /##(   )##\\   %OoO# #   %#e' #  #  | | |   | ^._.| / \\
  /###P   q#,^\\
 /P^         ^q\\ Welcome to Arch Linux! Lets get started.
+
+Before we begin, a few things:
+
+- Be sure to read the wiki.
+- It probably wont work.
+- Have fun anyway!
   "
   whiptail \
+    --backtitle "$INSTALLER_TITLE" \
     --title "Arch Installer" \
+    --no-shadow \
+    --scrollbar \
     --msgbox "$message" \
-    20 64
+    18 64
 }
 
 # Router
