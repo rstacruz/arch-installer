@@ -17,6 +17,11 @@ DEFAULT_LOCALE="en_US.UTF-8"
 INSTALLER_TITLE="Welcome to Arch Linux"
 ARCH_MIRROR=""
 
+# Dialog implementation to use.
+DIALOG=${DIALOG:-dialog}
+
+WIDTH_MD=72
+
 # Start doing stuff
 run_install() {
   ensure_efi
@@ -95,8 +100,7 @@ config__show_system_dialog() {
   Welcome to Arch Linux!
   Configure your installation here, then hit 'Proceed'.
   "
-  eval $(resize)
-  whiptail \
+  $DIALOG \
     --backtitle "$INSTALLER_TITLE" \
     --title "Configure your system" \
     --no-cancel \
@@ -105,7 +109,7 @@ config__show_system_dialog() {
     --extra-button \
     --extra-label "Next" \
     --menu "$message"\
-    $(( $LINES - 12 )) $COLUMNS 3 \
+    20 $WIDTH_MD 3 \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
     "Locale" "[en_US.UTF-8]"
@@ -118,7 +122,7 @@ config__show_user_dialog() {
   Tell me avout the user you wanna use.  This ie a configuration dialog with some text in it that explains whats going on.
   "
   eval $(resize)
-  whiptail \
+  $DIALOG \
     --backtitle "$INSTALLER_TITLE" \
     --title "Configure your user" \
     --no-cancel \
@@ -127,7 +131,7 @@ config__show_user_dialog() {
     --extra-button \
     --extra-label "Next" \
     --menu "$message"\
-    $(( $LINES - 12 )) 64 4 \
+    20 $WIDTH_MD 4 \
     "Hostname" "[$HOSTNAME]" \
     "Your username" "[$PRIMARY_USERNAME]" \
     "Your password" "[password1]" \
@@ -142,41 +146,45 @@ config__export_variables() {
 
 run_welcome() {
   message="
-       .
-      /#\\
-     /###\\                     #     | *
-    /p^###\\      a##e #%' a#'e 6##%  | | |-^-. |   | \\ /
-   /##P^q##\\    .oOo# #   #    #  #  | | |   | |   |  X
-  /##(   )##\\   %OoO# #   %#e' #  #  | | |   | ^._.| / \\
- /###P   q#,^\\
-/P^         ^q\\ Welcome to Arch Linux! Lets get started.
+            .
+           /#\\
+          /###\\                     #     | *
+         /p^###\\      a##e #%' a#'e 6##%  | | |-^-. |   | \\ /
+        /##P^q##\\    .oOo# #   #    #  #  | | |   | |   |  X
+       /##(   )##\\   %OoO# #   %#e' #  #  | | |   | ^._.| / \\
+      /###P   q#,^\\
+     /P^         ^q\\
 
-Before we begin, a few things:
+Welcome to Arch Linux! Lets get started. Before we begin, a few things:
 
 - Be sure to read the wiki.
+  Nte tuhon tuhoen utoehu noetuhoe ntu.
+
 - It probably wont work.
+  Nte tuhon tuhoen utoehu noetuhoe ntu.
+
 - Have fun anyway!
   "
-  whiptail \
+  $DIALOG \
     --backtitle "$INSTALLER_TITLE" \
     --title "Arch Installer" \
     --no-shadow \
     --scrollbar \
     --msgbox "$message" \
-    18 64
+    18 $WIDTH_MD
 }
 
 run_confirm() {
   message="
   Confirm these details:
   "
-  whiptail \
+  $DIALOG \
     --backtitle "$INSTALLER_TITLE" \
     --title "Confirm" \
     --no-shadow \
     --scrollbar \
     --msgbox "$message" \
-    18 64
+    18 $WIDTH_MD
 }
 
 # Router
