@@ -1,29 +1,41 @@
 #!/usr/bin/env bash
+# vim:foldmethod=marker:foldmarker={,}
 
-# Defaults
-KEYBOARD_LAYOUT="us"
-PRIMARY_LOCALE="en_US.UTF-8"
-TIMEZONE="Asia/Manila"
+# Default config
+app:set_defaults() {
+  # Defaults
+  KEYBOARD_LAYOUT="us"
+  PRIMARY_LOCALE="en_US.UTF-8"
+  TIMEZONE="Asia/Manila"
 
-HOSTNAME="my-arch"
-PRIMARY_USERNAME="anon"
-PRIMARY_PASSWORD="password1"
-ROOT_PASSWORD="password1"
+  HOSTNAME="my-arch"
+  PRIMARY_USERNAME="anon"
+  PRIMARY_PASSWORD="password1"
+  ROOT_PASSWORD="password1"
 
-FS_ROOT="/dev/sda2"
-FS_EFI="/dev/sda1"
+  FS_ROOT="/dev/sda2"
+  FS_EFI="/dev/sda1"
 
-DEFAULT_LOCALE="en_US.UTF-8"
-INSTALLER_TITLE="Welcome to Arch Linux"
-ARCH_MIRROR=""
+  DEFAULT_LOCALE="en_US.UTF-8"
+  INSTALLER_TITLE="Welcome to Arch Linux"
+  ARCH_MIRROR=""
 
-# Dialog implementation to use.
-DIALOG=${DIALOG:-dialog}
+  # Dialog implementation to use.
+  DIALOG=${DIALOG:-dialog}
+  DIALOG_OPTS=( \
+    --backtitle "$INSTALLER_TITLE" \
+    --title "Arch Installer" \
+  )
 
-WIDTH_MD=72
+  # The default action to spawn.
+  ACTION=welcome
+
+  # Dimensions
+  WIDTH_MD=72
+}
 
 # Start doing stuff
-run_install() {
+installer:run() {
   ensure_efi
   ensure_online
   set_keyboard_layout
@@ -36,7 +48,8 @@ run_install() {
   do_chroot
 }
 
-run_in_chroot() {
+# Run in chroot
+installer:run_in_chroot() {
   ensure_chroot
   set_timezone
   set_locale
@@ -52,7 +65,6 @@ run_in_chroot() {
 _() {
   echo $*
 }
-
 
 warn() {
   echo $*
@@ -79,29 +91,32 @@ ensure_online() {
   fi
 }
 
+# Set keyboard layout
 set_keyboard_layout() {
   info "Setting keyboard layout"
   _ loadkeys $KEYBOARD_LAYOUT
 }
 
+# Enable NTP
 enable_ntp() {
   info "Enabling syncing clock via ntp"
   _ timedatectl set-ntp true
 }
 
-run_config() {
-  config__show_system_dialog
-  config__show_user_dialog
-  run_confirm
+# Run config
+config:run() {
+  config:show_system_dialog
+  config:show_user_dialog
+  confirm:run
 }
 
-config__show_system_dialog() {
+# Config: Show system dialog
+config:show_system_dialog() {
   message="
   Welcome to Arch Linux!
   Configure your installation here, then hit 'Proceed'.
   "
-  $DIALOG \
-    --backtitle "$INSTALLER_TITLE" \
+  $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Configure your system" \
     --no-cancel \
     --no-shadow \
@@ -115,15 +130,14 @@ config__show_system_dialog() {
     "Locale" "[en_US.UTF-8]"
 }
 
-config__show_user_dialog() {
+# Config: Show user dialog
+config:show_user_dialog() {
   message="
   Your user
 
   Tell me avout the user you wanna use.  This ie a configuration dialog with some text in it that explains whats going on.
   "
-  eval $(resize)
-  $DIALOG \
-    --backtitle "$INSTALLER_TITLE" \
+  $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Configure your user" \
     --no-cancel \
     --no-shadow \
@@ -138,21 +152,21 @@ config__show_user_dialog() {
     "Root password" "[password1]"
 }
 
-
-
-config__export_variables() {
-  echo HOSTNAME="$HOSTNAME"
+# Show welcome message
+welcome:run() {
+  welcome:show_dialog
+  config:run
 }
 
-run_welcome() {
+welcome:show_dialog() {
   message="
             .
            /#\\
-          /###\\                     #     | *
-         /p^###\\      a##e #%' a#'e 6##%  | | |-^-. |   | \\ /
+          /###\\                     #     | .   __
+         /#^###\\       a#e #%' a#'e 6##%  | | |'  | |   | \\ /
         /##P^q##\\    .oOo# #   #    #  #  | | |   | |   |  X
-       /##(   )##\\   %OoO# #   %#e' #  #  | | |   | ^._.| / \\
-      /###P   q#,^\\
+       /##(   )##\\   %OoO# #   %#e' #  #  | | |   | '._.| / \\
+      /###P   q##^\\
      /P^         ^q\\
 
 Welcome to Arch Linux! Lets get started. Before we begin, a few things:
@@ -165,21 +179,22 @@ Welcome to Arch Linux! Lets get started. Before we begin, a few things:
 
 - Have fun anyway!
   "
-  $DIALOG \
-    --backtitle "$INSTALLER_TITLE" \
-    --title "Arch Installer" \
+  $DIALOG "${DIALOG_OPTS[@]}" \
     --no-shadow \
-    --scrollbar \
+    --keep-window \
     --msgbox "$message" \
-    18 $WIDTH_MD
+    18 $WIDTH_MD \
+    --and-widget \
+    --msgbox "sup" \
+    6 32
 }
 
-run_confirm() {
+# Confirm
+confirm:run() {
   message="
   Confirm these details:
   "
-  $DIALOG \
-    --backtitle "$INSTALLER_TITLE" \
+  $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Confirm" \
     --no-shadow \
     --scrollbar \
@@ -188,17 +203,20 @@ run_confirm() {
 }
 
 # Router
-action="welcome"
-case "$action" in
-  config)
-    run_config
-    ;;
-  welcome)
-    run_welcome
-    ;;
-  *)
-    warn "Dunno"
-    ;;
-esac
-# Lets go
-run_config
+app:route() {
+  case "$ACTION" in
+    config)
+      config:run
+      ;;
+    welcome)
+      welcome:run
+      ;;
+    *)
+      warn "Dunno"
+      ;;
+  esac
+}
+
+# Lets go!
+app:set_defaults
+app:route
