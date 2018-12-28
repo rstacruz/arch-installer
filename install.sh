@@ -29,12 +29,14 @@ app:set_defaults() {
     --title "Arch Installer" \
   )
 
-  # Dimensions
-  WIDTH_MD=72
-
   # This variable isn't always available
   LINES="$(tput lines)"
   COLUMNS="$(tput cols)"
+
+  # Dimensions
+  WIDTH_LG=$COLUMNS
+  WIDTH_SM=60
+  WIDTH_MD=72
 
   # Where to write the script
   SCRIPT_FILE="$HOME/arch_installer.sh"
@@ -99,7 +101,7 @@ form:text_input() {
     --no-cancel \
     --inputbox \
     "$label\n$description" \
-    8 $WIDTH_MD \
+    10 $WIDTH_SM \
     "$value" \
     3>&1 1>&2 2>&3
 }
@@ -131,7 +133,7 @@ config:user() {
             SYSTEM_HOSTNAME=$( \
               form:text_input \
               "System hostname:" "$SYSTEM_HOSTNAME" \
-              "This is how your system will identify itself in the network.")
+              "This is how your system will identify itself in networks. Think of this like the name of your computer.")
             ;;
           Your\ username)
             PRIMARY_USERNAME=$(\
@@ -143,7 +145,7 @@ config:user() {
             PRIMARY_PASSWORD=$( \
               form:text_input \
               "Password:" "$PRIMARY_PASSWORD" \
-              "Password for your primary user."
+              "Password for your primary user. (You can always change this later!)"
             )
             ;;
         esac
@@ -199,29 +201,37 @@ over a few things:
 
 # Confirm
 confirm:run() {
+  confirm:show_script_dialog
+  choice="$(confirm:show_confirm_dialog)"
+  echo $choice
+  case "$choice" in
+    Install) app:run_script ;;
+    *) app:abort ;;
+  esac
+}
+
+confirm:show_script_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Install script" \
     --backtitle "You are now ready to install! Review the install script below." \
-    --ok-label "Install now" \
-    --extra-button \
-    --extra-label "Exit" \
     --textbox "$SCRIPT_FILE" \
-    $(( $LINES - 6 )) $COLUMNS
+    $(( $LINES - 6 )) $WIDTH_LG
+}
 
-  if [[ $? == 0 ]]; then
-    app:run_script
-  else
-    app:abort
-  fi
+confirm:show_confirm_dialog() {
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title "" \
+    --no-cancel \
+    --menu \
+    "We're ready to install!" \
+    9 $WIDTH_SM 2 \
+    "Install" "Install now!" \
+    "Exit" "Exit installer" \
+    3>&1 1>&2 2>&3
 }
 
 # Run the script
 app:run_script() {
-  clear
-  echo ''
-  echo "     Ready! Press [ENTER] to start installation now."
-  echo ''
-  read x
   bash "$SCRIPT_FILE"
 }
 
@@ -392,7 +402,16 @@ app:start() {
 
 app:abort() {
   clear
-  echo "Installer aborted"
+  echo ""
+  if [[ -f "$SCRIPT_FILE" ]]; then
+    cd "$(dirname "$SCRIPT_FILE")"
+    echo "You finally proceed with the installation via:"
+    echo ""
+    echo "  ./$(basename "$SCRIPT_FILE")"
+    echo ""
+    echo "Feel free to edit it and see if everything is in order!"
+    echo ""
+  fi
   exit 1
 }
 
