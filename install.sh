@@ -666,13 +666,13 @@ script:write_fdisk() {
 script:write_pacstrap() {
   (
     echo "# Set keyboard layout"
-    echo "loadkeys $KEYBOARD_LAYOUT"
+    echo "loadkeys $(esc "$KEYBOARD_LAYOUT")"
     echo ''
     echo "# Enabling syncing clock via ntp"
     echo "timedatectl set-ntp true"
     echo ''
     echo "# Format drives"
-    echo "mkfs.ext4 $FS_ROOT"
+    echo "mkfs.ext4 $(esc "$FS_ROOT")"
     echo ''
     echo "# Mount your partitions"
     echo "mount $FS_ROOT /mnt"
@@ -688,7 +688,7 @@ script:write_pacstrap() {
     echo ''
     echo "# Set timezone"
     echo "arch-chroot /mnt sh <<END"
-    echo "  ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime"
+    echo "  ln -sf /usr/share/zoneinfo/$(esc "$TIMEZONE") /etc/localtime"
     echo "  hwclock --systohc"
     echo "END"
     echo ''
@@ -697,7 +697,7 @@ script:write_pacstrap() {
     (
       IFS=$'\n'
       for locale in ${PRIMARY_LOCALE[*]}; do
-      echo "  echo '$locale' >> /etc/locale.gen"
+        echo "  echo $(esc "$locale") >> /etc/locale.gen"
       done
     )
     echo "  locale-gen"
@@ -705,12 +705,12 @@ script:write_pacstrap() {
     echo ''
     echo "# Make keyboard layout persist on boot"
     echo "arch-chroot /mnt sh <<END"
-    echo "  echo 'KEYMAP=$KEYBOARD_LAYOUT' > /etc/vconsole.conf"
+    echo "  echo KEYMAP=$(esc "$KEYBOARD_LAYOUT") > /etc/vconsole.conf"
     echo "END"
     echo ''
     echo "# Set hostname"
     echo "arch-chroot /mnt sh <<END"
-    echo "  echo '$SYSTEM_HOSTNAME' > /etc/hostname"
+    echo "  echo $(esc "$SYSTEM_HOSTNAME") > /etc/hostname"
     echo "  echo '127.0.0.1 localhost' >> /etc/hosts"
     echo "  echo '::1 localhost' >> /etc/hosts"
     echo "  echo '127.0.1.1 $SYSTEM_HOSTNAME.localdomain $SYSTEM_HOSTNAME' >> /etc/hosts"
@@ -756,8 +756,8 @@ recipes:create_user() {
   echo ''
   echo "# Create your user"
   echo "arch-chroot /mnt sh <<END"
-  echo "  useradd -Nm -g users -G wheel,sys $PRIMARY_USERNAME"
-  echo "  echo -e '$PRIMARY_PASSWORD\\n$PRIMARY_PASSWORD' | passwd $PRIMARY_USERNAME"
+  echo "  useradd -Nm -g users -G wheel,sys $(esc "$PRIMARY_USERNAME")"
+  echo "  echo -e $(esc "$PRIMARY_PASSWORD")'\\n'$(esc "$PRIMARY_PASSWORD")' | passwd $(esc "$PRIMARY_USERNAME")"
   echo "END"
 }
 
@@ -954,6 +954,10 @@ utils:arch_logo() {
       /###P   q##^\\
      /P^         ^q\\
   "
+}
+
+esc() {
+  printf "%q" "$1"
 }
 
 # -------------------------------------------------------------------------------
