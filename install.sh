@@ -44,7 +44,8 @@ defaults() {
   SKIP_WELCOME=0
   SKIP_EXT4_CHECK=0
   SKIP_VFAT_CHECK=0
-  SKIP_CHECKS=0
+  SKIP_ARCHISO_CHECK=0
+  SKIP_SANITY_CHECKS=0
   ENABLE_RECIPES=0
 
   # Where to write the script
@@ -61,12 +62,15 @@ defaults() {
 main() {
   app:parse_options "$*"
 
-  if [[ "$SKIP_CHECKS" != 1 ]]; then
+  if [[ "$SKIP_SANITY_CHECKS" != 1 ]]; then
     check:ensure_pacman
     check:ensure_available_utils
-    check:ensure_hostname
     check:ensure_efi
     check:ensure_online
+  fi
+
+  if [[ "$SKIP_ARCHISO_CHECK" != 1 ]]; then
+    check:ensure_hostname
   fi
 
   if [[ "$SKIP_WELCOME" != 1 ]]; then
@@ -629,7 +633,7 @@ script:write_start() {
     echo "# This file was saved to $SCRIPT_FILE."
     echo "#"
     echo "set -euo pipefail"
-    echo '::() { echo "\n==>" "$*"; }'
+    echo '::() { echo "\n\033[1;32m==>\033[0m" "$*"; }'
     echo ''
   ) > "$SCRIPT_FILE"
   chmod +x "$SCRIPT_FILE"
@@ -788,23 +792,17 @@ app:parse_options() {
       # Go through the VIP entrance and skip some checkpoints.
       # Use this only for testing purposes!
       SKIP_WELCOME=1
-      SKIP_CHECKS=1
       SKIP_VFAT_CHECK=1
       SKIP_EXT4_CHECK=1
+      SKIP_ARCHISO_CHECK=1
+      SKIP_SANITY_CHECKS=1
       ;;
-    --skip-welcome)
-      SKIP_WELCOME=1
-      ;;
-    --skip-vfat-check)
-      SKIP_VFAT_CHECK=1
-      ;;
-    --skip-ext4-check)
-      SKIP_EXT4_CHECK=1
-      ;;
-    --dev)
-      # Developer options
-      ENABLE_RECIPES=1
-      ;;
+    --skip-archiso-check) SKIP_ARCHISO_CHECK=1 ;;
+    --skip-welcome) SKIP_WELCOME=1 ;;
+    --skip-vfat-check) SKIP_VFAT_CHECK=1 ;;
+    --skip-ext4-check) SKIP_EXT4_CHECK=1 ;;
+    # Developer options
+    --dev) ENABLE_RECIPES=1 ;;
     # -V | --version )
     #   echo version
     #   exit
@@ -849,9 +847,14 @@ quit:not_arch() {
   Arch Linux is required.
 
   The Arch installer is meant to be run from the Arch Linux
-  Live environment. You can download Arch Linux from:
+  Live environment. You can download Arch Linux from the Arch
+  Linux website.
 
       https://archlinux.org/downloads/
+
+  Also check the Arch Installer website for more details.
+
+      $INSTALLER_URL
 
   Also check the Arch Installer website for more details.
 END
@@ -859,7 +862,20 @@ END
 
 quit:wrong_hostname() {
   quit:exit_msg <<END
-  This is not the Arch Linux Live enviroment.
+  You seem to be running the installer on something that
+  isn't the Arch Linux live enviroment.
+  
+  The Arch installer is meant to be run from the Arch Linux
+  Live environment. You can download Arch Linux from the Arch
+  Linux website.
+
+      https://archlinux.org/downloads/
+
+  Also check the Arch Installer website for more details.
+
+      $INSTALLER_URL
+
+  (You can skip this check with '--skip-archiso-check'.)
 END
 }
 
