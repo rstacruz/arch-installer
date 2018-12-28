@@ -24,15 +24,14 @@ arch-installer
 
 3. Boot into the Arch Linux Live environment.
 
-4. Get online. (Tip: my favorite trick is using an Android phone to do [USB Tethering][android].)
+4. Get online. You can do this via [ethernet](docs/connect_via_ethernet.md), [wifi](docs/connect_via_wifi.md), or an [Android phone](docs/connect_via_android.md).
 
 5. In the `root@archiso ~ #` prompt, type:
 
-  ```sh
-  curl -s https://ricostacruz.com/arch-installer/install.sh | bash
-  ```
+```sh
+curl -s https://ricostacruz.com/arch-installer/install.sh | bash
+```
 
-[android]: https://www.reddit.com/r/archlinux/comments/2v8k8o/the_arch_iso_supports_android_usb_tethering/
 [download]: https://www.archlinux.org/download/
 [usb]: https://wiki.archlinux.org/index.php/USB_flash_installation_media
 
