@@ -38,6 +38,9 @@ app:set_defaults() {
   WIDTH_SM=60
   WIDTH_MD=72
 
+  SKIP_WELCOME=0
+  SKIP_CHECKS=0
+
   # Where to write the script
   SCRIPT_FILE="$HOME/arch_installer.sh"
 
@@ -77,14 +80,19 @@ config:system() {
       0)
         case "$choice" in
           Keyboard\ layout)
-            KEYBOARD_LAYOUT=$(form:text_input "Keyboard layout:" "$KEYBOARD_LAYOUT")
-            loadkeys "$KEYBOARD_LAYOUT"
+            choice="$(config:choose_keyboard_layout "$KEYBOARD_LAYOUT")"
+            if [[ -n "$choice" ]]; then
+              KEYBOARD_LAYOUT="$choice"
+              loadkeys "$choice"
+            fi
             ;;
           Time\ zone)
-            TIMEZONE=$(config:choose_timezone "$TIMEZONE")
+            choice="$(config:choose_timezone "$TIMEZONE")"
+            if [[ -n "$choice" ]]; then TIMEZONE="$choice"; fi
             ;;
-          Locale)
-            PRIMARY_LOCALE=$(form:text_input "Locale:" "$PRIMARY_LOCALE")
+          Locales)
+            choice="$(config:choose_locale)"
+            if [[ -n "$choice" ]]; then PRIMARY_LOCALE="$choice"; fi
             ;;
         esac
         ;;
@@ -94,55 +102,148 @@ config:system() {
   done; set -e
 }
 
+# Returns (echoes) a timezone. `$1` currently-selected one.
+#     config:choose_timezone "Asia/Manila"
 config:choose_timezone() {
   active="$1"
-  active_region="$(dirname $active)"
-  active_zone="$(basename $active)"
-
-  region="$(config:choose_timezone_region_dialog "$active_region")"
-  if [[ -z "$region" ]]; then echo $active; return; fi
-
-  zone="$(config:choose_timezone_zone_dialog "$region" "$active_zone")"
-  if [[ -z "$zone" ]]; then echo $active; return; fi
-
-  echo "$region/$zone"
+  choice="$(form:file_picker \
+    "$ZONES_PATH" \
+    "Time zone" \
+    "Choose your region:"
+  )"
+  if [[ -z "$choice" ]]; then echo $active; return; fi
+  echo $choice
 }
 
-config:choose_timezone_region_dialog() {
+# Returns (echoes) a keyboard layout.
+config:choose_keyboard_layout() {
   active="$1"
+  (
+    echo us
+    echo uk
+    echo dvorak
+    echo colemak
+    util:list_keymaps
+  ) | form:select \
+    "Keyboard layout" \
+    "$active"
+}
+
+# Returns (echoes) a locale.
+config:choose_locale() {
+  (
+    echo "en_US.UTF-8 UTF-8"
+    echo "en_GB.UTF-8 UTF-8"
+    util:list_locales
+  ) | form:multi_select \
+    "Locales"
+}
+
+# Dropdown
+form:select() {
+  title="$1"
+  active="$2"
   pairs=()
-  for dir in "$ZONES_PATH"/*; do
-    if [[ ! -d "$dir" ]]; then continue; fi
-    dir=${dir#$ZONES_PATH/}
-    if [[ "$dir" == "right" ]]; then continue; fi
-    if [[ "$dir" == "posix" ]]; then continue; fi
-    pairs+=("$dir" "$dir")
+  IFS=$'\n'
+  while read line; do
+    pairs+=("$line" "$line")
   done
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --no-tags \
-    --title "Time zone" \
-    --menu "Select your region:" \
+    --title "$title" \
+    --default-item "$active" \
+    --menu "" \
     23 $WIDTH_SM 16 \
     ${pairs[*]} \
     3>&1 1>&2 2>&3
 }
 
-config:choose_timezone_zone_dialog() {
-  dir="$1"
+# Multi-select dropdown
+form:multi_select() {
+  title="$1"
+  active="$2"
   pairs=()
-  for fname in "$ZONES_PATH"/"$dir"/*; do
-    fname=${fname#$ZONES_PATH/$dir/}
-    pairs+=("$fname" "$fname")
+  IFS=$'\n'
+  while read line; do
+    status=off
+    if [[ "${active[@]}" =~ "${line}" ]]; then status=on; fi
+    pairs+=("$line" "$line" $status)
   done
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --no-tags \
-    --title "$dir" \
-    --menu "Select your time zone in ${dir}:" \
+    --separate-output \
+    --title "$title" \
+    --checklist "Press [SPACE] to select/deselect." \
     23 $WIDTH_SM 16 \
     ${pairs[*]} \
     3>&1 1>&2 2>&3
+}
+
+# A file picker dialog of sorts
+#     form:file_picker /path/to "Title" "Pick a file:"
+form:file_picker() {
+  root="$1"
+  title="$2"
+  body="$3"
+  depth="0"
+  result=""
+
+  while true; do
+    choice="$(form:file_picker_dialog "$root" "$title" "$body" "$depth")"
+    if [[ $? != 0 ]]; then
+      return 1
+    fi
+    result="${result}${choice}"
+    if [[ -f "$root/$choice" ]]; then
+      break
+    else
+      root="$root/$choice"
+    fi
+    depth="$(( $depth + 1 ))"
+  done
+  echo "$result"
+}
+
+# Delegate function of form:file_picker
+form:file_picker_dialog() {
+  root="$1"
+  title="$2"
+  body="$3"
+  depth="$4"
+
+  pairs=()
+  for entry in "$root"/*; do
+    # For the first-level, ignore non-files.
+    if [[ $depth == 0 ]] && [[ ! -d "$entry" ]]; then continue; fi
+    if [[ -d "$entry" ]]; then entry="$entry/"; fi
+
+    # Strip the root from it
+    entry=${entry#$root/}
+
+    # These directories should be ignored for timezones
+    if [[ "$entry" == "right/" ]]; then continue; fi
+    if [[ "$entry" == "posix/" ]]; then continue; fi
+
+    pairs+=("$entry" "$entry")
+  done
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --no-tags \
+    --title "$title" \
+    --menu "$body" \
+    23 $WIDTH_SM 16 \
+    ${pairs[*]} \
+    3>&1 1>&2 2>&3
+}
+
+# List available keymaps
+util:list_keymaps() {
+  find /usr/share/kbd/keymaps -type f -exec basename '{}' '.map.gz' \; | sort
+}
+util:list_locales() {
+  cat /etc/locale.gen | grep -e '^#[a-zA-Z]' | sed 's/^#//g' | sed 's/ *$//g'
 }
 
 # Form helper
@@ -173,7 +274,7 @@ config:show_system_dialog() {
     14 $WIDTH_MD 3 \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
-    "Locale" "[$PRIMARY_LOCALE]" \
+    "Locale" "[$(echo "${PRIMARY_LOCALE}" | xargs echo)]" \
     3>&1 1>&2 2>&3
 }
 
@@ -267,6 +368,7 @@ confirm:run() {
 confirm:show_script_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Install script" \
+    --scrollbar \
     --backtitle "You are now ready to install! Review the install script below." \
     --textbox "$SCRIPT_FILE" \
     $(( $LINES - 6 )) $WIDTH_LG
@@ -356,7 +458,7 @@ script:write_pacstrap() {
     echo "mount $FS_EFI /mnt/boot"
     echo ''
     echo "# Begin installing"
-    echo "# TODO: vi /etc/pacman.d/mirrorlist"
+    echo "# (Hint: edit /etc/pacman.d/mirrorlist first to speed this up)"
     echo "pacstrap /mnt base"
     echo ''
     echo "# Generate fstab"
@@ -370,7 +472,12 @@ script:write_pacstrap() {
     echo ''
     echo "# Set locales"
     echo "arch-chroot /mnt sh <<END"
-    echo "  echo '$PRIMARY_LOCALE' >> /etc/locale.gen"
+    (
+      IFS=$'\n'
+      for locale in ${PRIMARY_LOCALE[*]}; do
+      echo "  echo '$locale' >> /etc/locale.gen"
+      done
+    )
     echo "  locale-gen"
     echo "END"
     echo ''
@@ -386,31 +493,38 @@ script:write_pacstrap() {
     echo "  echo '::1 localhost' >> /etc/hosts"
     echo "  echo '127.0.1.1 $SYSTEM_HOSTNAME.localdomain $SYSTEM_HOSTNAME' >> /etc/hosts"
     echo "END"
-    echo ''
-    # echo "# Set root password"
-    # echo "arch-chroot /mnt sh <<END"
-    # echo "  echo -e '$ROOT_PASSWORD\\n$ROOT_PASSWORD' | passwd"
-    # echo "END"
-    # echo ''
-    echo "# GRUB boot loader"
-    echo "arch-chroot /mnt sh <<END"
-    echo "  pacman -Syu --noconfirm grub efibootmgr"
-    echo "  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB"
-    echo "  grub-mkconfig -o /boot/grub/grub.cfg"
-    echo "END"
-    echo ''
-    echo "# Create your user"
-    echo "arch-chroot /mnt sh <<END"
-    echo "  useradd -Nm -g users -G wheel,sys $PRIMARY_USERNAME"
-    echo "  echo -e '$PRIMARY_PASSWORD\\n$PRIMARY_PASSWORD' | passwd $PRIMARY_USERNAME"
-    echo "END"
-    echo ''
-    echo "# Set up sudo"
-    echo "arch-chroot /mnt sh <<END"
-    echo "  pacman -Syu --noconfirm sudo"
-    echo "  echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"
-    echo "END"
+    recipes:setup_grub
+    recipes:create_user
+    recipes:install_sudo
   ) >> "$SCRIPT_FILE"
+}
+
+recipes:setup_grub() {
+  echo ''
+  echo "# GRUB boot loader"
+  echo "arch-chroot /mnt sh <<END"
+  echo "  pacman -Syu --noconfirm grub efibootmgr"
+  echo "  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB"
+  echo "  grub-mkconfig -o /boot/grub/grub.cfg"
+  echo "END"
+}
+
+recipes:create_user() {
+  echo ''
+  echo "# Create your user"
+  echo "arch-chroot /mnt sh <<END"
+  echo "  useradd -Nm -g users -G wheel,sys $PRIMARY_USERNAME"
+  echo "  echo -e '$PRIMARY_PASSWORD\\n$PRIMARY_PASSWORD' | passwd $PRIMARY_USERNAME"
+  echo "END"
+}
+
+recipes:install_sudo() {
+  echo ''
+  echo "# Set up sudo"
+  echo "arch-chroot /mnt sh <<END"
+  echo "  pacman -Syu --noconfirm sudo"
+  echo "  echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"
+  echo "END"
 }
 
 script:write_end() {
@@ -428,27 +542,39 @@ script:write_end() {
 # Parse options
 app:parse_options() {
   while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
-    -V | --version )
-      echo version
-      exit
+    --vip)
+      # Use this only for tests!
+      SKIP_WELCOME=1
+      SKIP_CHECKS=1
       ;;
-    -s | --string )
-      shift; string=$1
+    --skip-welcome)
+      SKIP_WELCOME=1
       ;;
-    -f | --flag )
-      flag=1
-      ;;
+    # -V | --version )
+    #   echo version
+    #   exit
+    #   ;;
+    # -s | --string )
+    #   shift; string=$1
+    #   ;;
   esac; shift; done
   if [[ "$1" == '--' ]]; then shift; fi
 }
 
 # Start everything
 app:start() {
-  app:parse_options
-  ensure_efi
-  ensure_online
-  ensure_arch
-  welcome:show_dialog
+  app:parse_options "$*"
+
+  if [[ "$SKIP_CHECKS" != 1 ]]; then
+    ensure_efi
+    ensure_online
+    ensure_arch
+  fi
+
+  if [[ "$SKIP_WELCOME" != 1 ]]; then
+    welcome:show_dialog
+  fi
+
   config:system
   config:user
   script:write
@@ -485,4 +611,4 @@ utils:arch_logo() {
 
 # Lets go!
 app:set_defaults
-app:start
+app:start "$*"
