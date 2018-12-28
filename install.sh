@@ -633,7 +633,7 @@ script:write_start() {
     echo "# This file was saved to $SCRIPT_FILE."
     echo "#"
     echo "set -euo pipefail"
-    echo '::() { echo -e "\n\033[1;32m==>\033[0m" "$*"; }'
+    echo '::() { echo -e "\n\033[1;32m==>\033[0;1m" "$*""\033[0m"; }'
     echo ''
   ) > "$SCRIPT_FILE"
   chmod +x "$SCRIPT_FILE"
