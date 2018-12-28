@@ -20,7 +20,7 @@ arch-installer
 
 1. [Download the Arch Linux live environment ISO][download]. This installer is meant to run inside the Arch Linux live enviroment.
 
-2. [Put it into a USB][usb]. (Unless you're installing into a VM.)
+2. [Put it into a USB drive][usb]. (Skip this if you're installing into a VM.)
 
 3. Boot into the Arch Linux Live environment.
 
