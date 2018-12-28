@@ -5,14 +5,13 @@ set -eo pipefail
 # Default config
 app:set_defaults() {
   # Defaults
-  KEYBOARD_LAYOUT="us"
+  KEYBOARD_LAYOUT=${KEYBOARD_LAYOUT:-us}
   PRIMARY_LOCALE="en_US.UTF-8 UTF-8"
   TIMEZONE="Asia/Manila"
 
   SYSTEM_HOSTNAME="my-arch"
   PRIMARY_USERNAME="anon"
   PRIMARY_PASSWORD="password1"
-  ROOT_PASSWORD="password1"
 
   FS_DISK="/dev/sda"
   FS_ROOT="/dev/sda2"
@@ -78,13 +77,50 @@ enable_ntp() {
   _ timedatectl set-ntp true
 }
 
+config:system() {
+  set +e; while true; do
+    choice="$(config:show_system_dialog)"
+    case "$?" in
+      0)
+        case "$choice" in
+          Keyboard\ layout)
+            KEYBOARD_LAYOUT=$(form:text_input "Keyboard layout:" "$KEYBOARD_LAYOUT")
+            ;;
+          Time\ zone)
+            TIMEZONE=$(form:text_input "Time zone:" "$TIMEZONE")
+            ;;
+          Locale)
+            PRIMARY_LOCALE=$(form:text_input "Locale:" "$PRIMARY_LOCALE")
+            ;;
+        esac
+        ;;
+      3) break ;; # "Next"
+      *) app:abort ;; # "Cancel"
+    esac
+  done; set -e
+}
+
+# Form helper
+form:text_input() {
+  label="$1"
+  value="$2"
+  description="$3"
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title "" \
+    --no-cancel \
+    --inputbox \
+    "$label\n$description" \
+    8 $WIDTH_MD \
+    "$value" \
+    3>&1 1>&2 2>&3
+}
+
 # Config: Show system dialog
 config:show_system_dialog() {
   message="\nWelcome to Arch Linux!\nConfigure your installation here, then hit 'Next'.\n "
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Configure your system" \
     --no-cancel \
-    --no-shadow \
     --ok-label "Change" \
     --extra-button \
     --extra-label "Next" \
@@ -92,7 +128,41 @@ config:show_system_dialog() {
     14 $WIDTH_MD 3 \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
-    "Locale" "[$PRIMARY_LOCALE]"
+    "Locale" "[$PRIMARY_LOCALE]" \
+    3>&1 1>&2 2>&3
+}
+
+config:user() {
+  set +e; while true; do
+    choice="$(config:show_user_dialog)"
+    case "$?" in
+      0)
+        case "$choice" in
+          Hostname)
+            SYSTEM_HOSTNAME=$( \
+              form:text_input \
+              "System hostname:" "$SYSTEM_HOSTNAME" \
+              "This is how your system will identify itself in the network.")
+            ;;
+          Your\ username)
+            PRIMARY_USERNAME=$(\
+              form:text_input \
+              "Username:" "$PRIMARY_USERNAME" \
+              "This is the user you will be using on a day-to-day basis.")
+            ;;
+          Your\ password)
+            PRIMARY_PASSWORD=$( \
+              form:text_input \
+              "Password:" "$PRIMARY_PASSWORD" \
+              "Password for your primary user."
+            )
+            ;;
+        esac
+        ;;
+      3) break ;; # "Next"
+      *) app:abort ;; # "Cancel"
+    esac
+  done; set -e
 }
 
 # Config: Show user dialog
@@ -106,11 +176,11 @@ config:show_user_dialog() {
     --extra-button \
     --extra-label "Next" \
     --menu "$message"\
-    20 $WIDTH_MD 4 \
+    14 $WIDTH_MD 3 \
     "Hostname" "[$SYSTEM_HOSTNAME]" \
     "Your username" "[$PRIMARY_USERNAME]" \
-    "Your password" "[password1]" \
-    "Root password" "[password1]"
+    "Your password" "[$PRIMARY_PASSWORD]" \
+    3>&1 1>&2 2>&3
 }
 
 # Show welcome message
@@ -222,7 +292,7 @@ script:write_pacstrap() {
     echo "timedatectl set-ntp true"
     echo ''
     echo "# Format drives"
-    echo "mkfs.ext4 $FS_ROOT"
+    echo "yes | mkfs.ext4 $FS_ROOT"
     echo ''
     echo "# Mount your partitions"
     echo "mount $FS_ROOT /mnt"
@@ -261,11 +331,11 @@ script:write_pacstrap() {
     echo "  echo '127.0.1.1 $SYSTEM_HOSTNAME.localdomain $SYSTEM_HOSTNAME' >> /etc/hosts"
     echo "END"
     echo ''
-    echo "# Set root password"
-    echo "arch-chroot /mnt sh <<END"
-    echo "  echo -e '$ROOT_PASSWORD\\n$ROOT_PASSWORD' | passwd"
-    echo "END"
-    echo ''
+    # echo "# Set root password"
+    # echo "arch-chroot /mnt sh <<END"
+    # echo "  echo -e '$ROOT_PASSWORD\\n$ROOT_PASSWORD' | passwd"
+    # echo "END"
+    # echo ''
     echo "# GRUB boot loader"
     echo "arch-chroot /mnt sh <<END"
     echo "  pacman -Syu --noconfirm grub efibootmgr"
@@ -323,10 +393,16 @@ app:start() {
   ensure_online
   ensure_arch
   welcome:show_dialog
-  config:show_system_dialog
-  config:show_user_dialog
+  config:system
+  config:user
   script:write
   confirm:run
+}
+
+app:abort() {
+  clear
+  echo "Installer aborted"
+  exit 1
 }
 
 # Lets go!
