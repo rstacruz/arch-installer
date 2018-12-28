@@ -242,6 +242,8 @@ form:file_picker_dialog() {
 util:list_keymaps() {
   find /usr/share/kbd/keymaps -type f -exec basename '{}' '.map.gz' \; | sort
 }
+
+# List available locales
 util:list_locales() {
   cat /etc/locale.gen | grep -e '^#[a-zA-Z]' | sed 's/^#//g' | sed 's/ *$//g'
 }
@@ -309,6 +311,24 @@ config:user() {
       *) app:abort ;; # "Cancel"
     esac
   done; set -e
+}
+
+# Let the user pick recipes they want
+config:recipes() {
+  config:show_recipes_dialog
+}
+
+config:show_recipes_dialog() {
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --separate-output \
+    --title "Extras" \
+    --checklist "Pick some other extras to install\nPress [SPACE] to select/deselect." \
+    15 $WIDTH_MD 8 \
+    "grub" "Install GRUB boot loader (recommended)" on \
+    "sudo" "Install sudo (recommended)" on \
+    "base-devel" "Install base-devel" off \
+    "yay" "Install yay the AUR helper" off \
+    3>&1 1>&2 2>&3
 }
 
 # Config: Show user dialog
@@ -499,34 +519,6 @@ script:write_pacstrap() {
   ) >> "$SCRIPT_FILE"
 }
 
-recipes:setup_grub() {
-  echo ''
-  echo "# GRUB boot loader"
-  echo "arch-chroot /mnt sh <<END"
-  echo "  pacman -Syu --noconfirm grub efibootmgr"
-  echo "  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB"
-  echo "  grub-mkconfig -o /boot/grub/grub.cfg"
-  echo "END"
-}
-
-recipes:create_user() {
-  echo ''
-  echo "# Create your user"
-  echo "arch-chroot /mnt sh <<END"
-  echo "  useradd -Nm -g users -G wheel,sys $PRIMARY_USERNAME"
-  echo "  echo -e '$PRIMARY_PASSWORD\\n$PRIMARY_PASSWORD' | passwd $PRIMARY_USERNAME"
-  echo "END"
-}
-
-recipes:install_sudo() {
-  echo ''
-  echo "# Set up sudo"
-  echo "arch-chroot /mnt sh <<END"
-  echo "  pacman -Syu --noconfirm sudo"
-  echo "  echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"
-  echo "END"
-}
-
 script:write_end() {
   (
     echo ""
@@ -539,6 +531,36 @@ script:write_end() {
   ) >> "$SCRIPT_FILE"
 }
 
+# Recipe for setting up grub
+recipes:setup_grub() {
+  echo ''
+  echo "# GRUB boot loader"
+  echo "arch-chroot /mnt sh <<END"
+  echo "  pacman -Syu --noconfirm grub efibootmgr"
+  echo "  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB"
+  echo "  grub-mkconfig -o /boot/grub/grub.cfg"
+  echo "END"
+}
+
+# Recipe for creating user
+recipes:create_user() {
+  echo ''
+  echo "# Create your user"
+  echo "arch-chroot /mnt sh <<END"
+  echo "  useradd -Nm -g users -G wheel,sys $PRIMARY_USERNAME"
+  echo "  echo -e '$PRIMARY_PASSWORD\\n$PRIMARY_PASSWORD' | passwd $PRIMARY_USERNAME"
+  echo "END"
+}
+
+# Recipe for installing sudo
+recipes:install_sudo() {
+  echo ''
+  echo "# Set up sudo"
+  echo "arch-chroot /mnt sh <<END"
+  echo "  pacman -Syu --noconfirm sudo"
+  echo "  echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"
+  echo "END"
+}
 # Parse options
 app:parse_options() {
   while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
@@ -577,6 +599,7 @@ app:start() {
 
   config:system
   config:user
+  # config:recipes TODO
   script:write
   confirm:run
 }
