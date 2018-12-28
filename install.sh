@@ -201,11 +201,11 @@ over a few things:
 
 # Confirm
 confirm:run() {
-  confirm:show_script_dialog
   choice="$(confirm:show_confirm_dialog)"
   echo $choice
   case "$choice" in
-    Install) app:run_script ;;
+    I | Install\ now) app:run_script ;;
+    R | Review) confirm:show_script_dialog; confirm:run ;;
     *) app:abort ;;
   esac
 }
@@ -223,10 +223,11 @@ confirm:show_confirm_dialog() {
     --title "" \
     --no-cancel \
     --menu \
-    "We're ready to install!" \
-    9 $WIDTH_SM 2 \
-    "Install" "Install now!" \
-    "Exit" "Exit installer" \
+    "We're ready to install!\n[R]eview the install script first before you [I]nstall." \
+    12 $WIDTH_SM 3 \
+    "Review" "" \
+    "Install now" "" \
+    "Exit" "" \
     3>&1 1>&2 2>&3
 }
 
