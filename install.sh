@@ -42,6 +42,8 @@ app:set_defaults() {
   WIDTH_MD=72
 
   SKIP_WELCOME=0
+  SKIP_EXT4_CHECK=0
+  SKIP_EFI_CHECK=0
   SKIP_CHECKS=0
   ENABLE_RECIPES=0
 
@@ -80,7 +82,54 @@ check:ensure_pacman() {
 # Ensure there are available partitions.
 check:ensure_valid_partitions() {
   disk="$1"
-  # TODO
+  if [[ "$SKIP_EXT4_CHECK" == 0 ]]; then
+    if ! util:disk_has_partition "$disk" "ext4"; then
+      clear
+      echo "You don't seem to have an 'ext4' partition in $disk."
+      echo ""
+      lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
+      echo ""
+      echo "Linux is usually installed into an ext4 partition. See the"
+      echo "Arch wiki for details:"
+      echo ""
+      echo "    https://wiki.archlinux.org/index.php/Installation_guide#Partition_the_disks"
+      echo ""
+      echo "(You can skip this check with '--skip-ext4-check'.)"
+      exit 1
+    fi
+  fi
+
+  if [[ "$SKIP_EFI_CHECK" == 0 ]]; then
+    if ! util:disk_has_partition "$disk" "vfat"; then
+      clear
+      echo "You don't seem to have an 'vfat' partition in $disk."
+      echo ""
+      lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
+      echo ""
+      echo "You will need an EFI partition. See the Arch wiki for details:"
+      echo ""
+      echo "    https://wiki.archlinux.org/index.php/EFI_system_partition"
+      echo ""
+      echo "Read the guide above, partition your disk with 'cfdisk' and run"
+      echo "the installer again."
+      echo ""
+      echo "(You can skip this check with '--skip-efi-check'.)"
+      echo ""
+      exit 1
+    fi
+  fi
+}
+
+# Check if a disk has a given partition of given type
+#     if util:disk_has_partition /dev/sda1 ext4; then ...
+util:disk_has_partition() {
+  disk="$1"
+  fstype="$2"
+  lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
+    | grep 'TYPE="part"' \
+    | grep "$(basename $disk)" \
+    | grep "FSTYPE=\"$fstype\"" \
+    &>/dev/null
 }
 
 config:system() {
@@ -144,14 +193,14 @@ config:disk() {
       choice="$(config:show_partition_dialog \
         "$FS_DISK" \
         "Linux partition" \
-        "Choose partition to install Linux into:")"
+        "Choose partition to install Linux into:\n(This is usually an 'ext4' partition.)")"
       FS_ROOT="$choice"
 
       # Pick Linux partition
       choice="$(config:show_partition_dialog \
         "$FS_DISK" \
         "EFI Partition" \
-        "Choose partition to install the EFI boot loader into:")"
+        "Choose partition to install the EFI boot loader into:\n(This is usually an 'vfat' partition.)")"
       FS_EFI="$choice"
       ;;
   esac
@@ -591,7 +640,7 @@ script:write_pacstrap() {
     echo "timedatectl set-ntp true"
     echo ''
     echo "# Format drives"
-    echo "yes | mkfs.ext4 $FS_ROOT"
+    echo "mkfs.ext4 $FS_ROOT"
     echo ''
     echo "# Mount your partitions"
     echo "mount $FS_ROOT /mnt"
@@ -698,6 +747,12 @@ app:parse_options() {
       ;;
     --skip-welcome)
       SKIP_WELCOME=1
+      ;;
+    --skip-efi-check)
+      SKIP_EFI_CHECK=1
+      ;;
+    --skip-ext4-check)
+      SKIP_EXT4_CHECK=1
       ;;
     --dev)
       # Developer options
