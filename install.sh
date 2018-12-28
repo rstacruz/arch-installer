@@ -2,8 +2,8 @@
 # vim:foldmethod=marker:foldmarker={,}
 set -eo pipefail
 
-# Default config
-app:set_defaults() {
+# Default config / global state
+defaults() {
   # Defaults
   KEYBOARD_LAYOUT=${KEYBOARD_LAYOUT:-us}
   PRIMARY_LOCALE="en_US.UTF-8 UTF-8"
@@ -43,7 +43,7 @@ app:set_defaults() {
 
   SKIP_WELCOME=0
   SKIP_EXT4_CHECK=0
-  SKIP_EFI_CHECK=0
+  SKIP_VFAT_CHECK=0
   SKIP_CHECKS=0
   ENABLE_RECIPES=0
 
@@ -53,6 +53,8 @@ app:set_defaults() {
   # Where timezones are stored
   ZONES_PATH="/usr/share/zoneinfo"
 }
+
+# -------------------------------------------------------------------------------
 
 # Ensures that the system is booted in UEFI mode, and not
 # Legacy mode. Exits the installer if it fails.
@@ -71,6 +73,7 @@ check:ensure_online() {
   fi
 }
 
+# Ensure that Pacman is installed.
 check:ensure_pacman() {
   if [[ ! -e /etc/pacman.d/mirrorlist ]]; then
     echo "You don't seem to have pacman available."
@@ -84,55 +87,18 @@ check:ensure_valid_partitions() {
   disk="$1"
   if [[ "$SKIP_EXT4_CHECK" == 0 ]]; then
     if ! util:disk_has_partition "$disk" "ext4"; then
-      clear
-      echo "You don't seem to have an 'ext4' partition in '$disk' yet."
-      echo "You may need to partition your disk before continuing."
-      echo ""
-      lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
-      echo ""
-      echo "Linux is usually installed into an ext4 partition. See the"
-      echo "Arch wiki for details:"
-      echo ""
-      echo "    https://wiki.archlinux.org/index.php/Installation_guide#Partition_the_disks"
-      echo ""
-      echo "(You can skip this check with '--skip-ext4-check'.)"
-      exit 1
+      quit:no_ext4
     fi
   fi
 
-  if [[ "$SKIP_EFI_CHECK" == 0 ]]; then
+  if [[ "$SKIP_VFAT_CHECK" == 0 ]]; then
     if ! util:disk_has_partition "$disk" "vfat"; then
-      clear
-      echo "You don't seem to have an 'vfat' partition in '$disk' yet."
-      echo "You may need to partition your disk before continuing."
-      echo ""
-      lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
-      echo ""
-      echo "You will need an EFI partition. See the Arch wiki for details:"
-      echo ""
-      echo "    https://wiki.archlinux.org/index.php/EFI_system_partition"
-      echo ""
-      echo "Read the guide above, partition your disk with 'cfdisk' and run"
-      echo "the installer again."
-      echo ""
-      echo "(You can skip this check with '--skip-efi-check'.)"
-      echo ""
-      exit 1
+      quit:no_vfat
     fi
   fi
 }
 
-# Check if a disk has a given partition of given type
-#     if util:disk_has_partition /dev/sda1 ext4; then ...
-util:disk_has_partition() {
-  disk="$1"
-  fstype="$2"
-  lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
-    | grep 'TYPE="part"' \
-    | grep "$(basename $disk)" \
-    | grep "FSTYPE=\"$fstype\"" \
-    &>/dev/null
-}
+# -------------------------------------------------------------------------------
 
 config:system() {
   set +e; while true; do
@@ -158,21 +124,9 @@ config:system() {
         esac
         ;;
       3) break ;; # "Next"
-      *) app:abort ;; # "Cancel"
+      *) quit:exit ;; # "Cancel"
     esac
   done; set -e
-}
-
-util:list_drives() {
-  # NAME="sda" SIZE="883GB"
-  lsblk -I 8 -o "NAME,SIZE" -P -d
-}
-util:list_partitions() {
-  disk="$1"
-  # NAME="sda1" SIZE="883GB"
-  lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
-    | grep 'TYPE="part"' \
-    | grep "$(basename $disk)"
 }
 
 config:disk() {
@@ -182,7 +136,7 @@ config:disk() {
   strategy="$(config:show_partition_strategy_dialog "$FS_DISK")"
   case "$strategy" in
     Partition*)
-      app:abort_cfdisk
+      quit:cfdisk
       ;;
     Wipe)
       FS_DO_FDISK=1
@@ -260,7 +214,6 @@ config:show_partition_dialog() {
     3>&1 1>&2 2>&3
 }
 
-
 # Returns (echoes) a timezone. `$1` currently-selected one.
 #     config:choose_timezone "Asia/Manila"
 config:choose_timezone() {
@@ -297,6 +250,8 @@ config:choose_locale() {
   ) | form:multi_select \
     "Locales"
 }
+
+# -------------------------------------------------------------------------------
 
 # Dropdown
 form:select() {
@@ -397,6 +352,8 @@ form:file_picker_dialog() {
     3>&1 1>&2 2>&3
 }
 
+# -------------------------------------------------------------------------------
+
 # List available keymaps
 util:list_keymaps() {
   find /usr/share/kbd/keymaps -type f -exec basename '{}' '.map.gz' \; | sort
@@ -406,6 +363,20 @@ util:list_keymaps() {
 util:list_locales() {
   cat /etc/locale.gen | grep -e '^#[a-zA-Z]' | sed 's/^#//g' | sed 's/ *$//g'
 }
+
+# Check if a disk has a given partition of given type
+#     if util:disk_has_partition /dev/sda1 ext4; then ...
+util:disk_has_partition() {
+  disk="$1"
+  fstype="$2"
+  lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
+    | grep 'TYPE="part"' \
+    | grep "$(basename $disk)" \
+    | grep "FSTYPE=\"$fstype\"" \
+    &>/dev/null
+}
+
+# -------------------------------------------------------------------------------
 
 # Form helper
 form:text_input() {
@@ -467,7 +438,7 @@ config:user() {
         esac
         ;;
       3) break ;; # "Next"
-      *) app:abort ;; # "Cancel"
+      *) quit:exit ;; # "Cancel"
     esac
   done; set -e
 }
@@ -510,6 +481,8 @@ config:show_user_dialog() {
     3>&1 1>&2 2>&3
 }
 
+# -------------------------------------------------------------------------------
+
 # Show welcome message
 welcome:show_dialog() {
   message="
@@ -536,14 +509,16 @@ over a few things:
     "$(( $LINES - 8 ))" $WIDTH_MD
 }
 
-# Confirm
+# -------------------------------------------------------------------------------
+
+# Confirmation step
 confirm:run() {
   choice="$(confirm:show_confirm_dialog)"
   echo $choice
   case "$choice" in
     I | Install\ now) app:run_script ;;
     R | Review) confirm:show_script_dialog; confirm:run ;;
-    *) app:abort ;;
+    *) quit:exit ;;
   esac
 }
 
@@ -569,10 +544,12 @@ confirm:show_confirm_dialog() {
     3>&1 1>&2 2>&3
 }
 
+# -------------------------------------------------------------------------------
+
 # Run the script
 app:run_script() {
   # Only proceed if we're root.
-  if [[ $(id -u) != "0" ]]; then app:abort; return; fi
+  if [[ $(id -u) != "0" ]]; then quit:exit; return; fi
 
   # Clear the screen, and make sure any ANSI garbage is cleaned up
   clear
@@ -581,6 +558,8 @@ app:run_script() {
 
   bash "$SCRIPT_FILE"
 }
+
+# -------------------------------------------------------------------------------
 
 # Write script
 script:write() {
@@ -713,6 +692,8 @@ script:write_end() {
   ) >> "$SCRIPT_FILE"
 }
 
+# -------------------------------------------------------------------------------
+
 # Recipe for setting up grub
 recipes:setup_grub() {
   echo ''
@@ -744,19 +725,24 @@ recipes:install_sudo() {
   echo "END"
 }
 
+# -------------------------------------------------------------------------------
+
 # Parse options
 app:parse_options() {
   while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
     --vip)
-      # Use this only for tests!
+      # Go through the VIP entrance and skip some checkpoints.
+      # Use this only for testing purposes!
       SKIP_WELCOME=1
       SKIP_CHECKS=1
+      SKIP_VFAT_CHECK=1
+      SKIP_EXT4_CHECK=1
       ;;
     --skip-welcome)
       SKIP_WELCOME=1
       ;;
-    --skip-efi-check)
-      SKIP_EFI_CHECK=1
+    --skip-vfat-check)
+      SKIP_VFAT_CHECK=1
       ;;
     --skip-ext4-check)
       SKIP_EXT4_CHECK=1
@@ -809,12 +795,15 @@ app:start() {
   confirm:run
 }
 
-app:abort() {
+# -------------------------------------------------------------------------------
+
+# Quit and exit
+quit:exit() {
   clear
   echo ""
   if [[ -f "$SCRIPT_FILE" ]]; then
     cd "$(dirname "$SCRIPT_FILE")"
-    echo "You finally proceed with the installation via:"
+    echo "You can proceed with the installation via:"
     echo ""
     echo "  ./$(basename "$SCRIPT_FILE")"
     echo ""
@@ -824,7 +813,8 @@ app:abort() {
   exit 1
 }
 
-app:abort_cfdisk() {
+# Show 'please run cfdisk' message and exit
+quit:cfdisk() {
   clear
   echo ""
   echo "Partition your disk by typing:"
@@ -837,6 +827,61 @@ app:abort_cfdisk() {
   exit 1
 }
 
+# Show 'no ext4 partition' error message and exit
+quit:no_ext4() {
+  clear
+  echo "You don't seem to have an 'ext4' partition in '$disk' yet."
+  echo "You may need to partition your disk before continuing."
+  echo ""
+  lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
+  echo ""
+  echo "Linux is usually installed into an ext4 partition. See the"
+  echo "Arch wiki for details:"
+  echo ""
+  echo "    https://wiki.archlinux.org/index.php/Installation_guide#Partition_the_disks"
+  echo ""
+  echo "(You can skip this check with '--skip-ext4-check'.)"
+  exit 1
+}
+
+# Show 'no vfat partition' error message and exit
+quit:no_vfat() {
+  clear
+  echo "You don't seem to have an 'vfat' partition in '$disk' yet."
+  echo "You may need to partition your disk before continuing."
+  echo ""
+  lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
+  echo ""
+  echo "You will need an EFI partition. See the Arch wiki for details:"
+  echo ""
+  echo "    https://wiki.archlinux.org/index.php/EFI_system_partition"
+  echo ""
+  echo "Read the guide above, partition your disk with 'cfdisk' and run"
+  echo "the installer again."
+  echo ""
+  echo "(You can skip this check with '--skip-vfat-check'.)"
+  echo ""
+  exit 1
+}
+
+# -------------------------------------------------------------------------------
+
+# Dev helpers: List available drives
+util:list_drives() {
+  # NAME="sda" SIZE="883GB"
+  lsblk -I 8 -o "NAME,SIZE" -P -d
+}
+
+# Dev helpers: List available partitions
+util:list_partitions() {
+  disk="$1"
+  # NAME="sda1" SIZE="883GB"
+  lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
+    | grep 'TYPE="part"' \
+    | grep "$(basename $disk)"
+}
+
+# Random utils
 utils:arch_logo() {
   echo "
             .
@@ -850,6 +895,8 @@ utils:arch_logo() {
   "
 }
 
+# -------------------------------------------------------------------------------
+
 # Lets go!
-app:set_defaults
+defaults
 app:start "$*"
