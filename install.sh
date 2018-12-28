@@ -626,6 +626,7 @@ script:write_start() {
     echo "# This file was saved to $SCRIPT_FILE."
     echo "#"
     echo "set -euo pipefail"
+    echo '::() { echo "\n==>" "$*"; }'
     echo ''
   ) > "$SCRIPT_FILE"
   chmod +x "$SCRIPT_FILE"
@@ -633,13 +634,13 @@ script:write_start() {
 
 script:write_fdisk() {
   (
-    echo "# Wipe $FS_DISK clean"
+    echo ":: Wiping disk ($FS_DISK)"
     echo "("
     echo "  echo g      # Clear everything and start as GPT"
     echo "  echo w      # Write and save"
     echo ") | fdisk $FS_DISK"
     echo ""
-    echo "# Create partitions in $FS_DISK"
+    echo ":: Creating partitions in $FS_DISK"
     echo "("
     echo "  echo n      # New partition"
     echo "  echo 1      # .. partition number = 1"
@@ -657,7 +658,7 @@ script:write_fdisk() {
     echo "  echo w      # Write and save"
     echo ") | fdisk $FS_DISK"
     echo ''
-    echo "# Format EFI"
+    echo ":: Formating EFI partition ($FS_EFI)"
     echo "mkfs.fat $FS_EFI"
     echo ''
   ) >> "$SCRIPT_FILE"
@@ -665,34 +666,34 @@ script:write_fdisk() {
 
 script:write_pacstrap() {
   (
-    echo "# Set keyboard layout"
+    echo ":: Setting keyboard layout"
     echo "loadkeys $(esc "$KEYBOARD_LAYOUT")"
     echo ''
-    echo "# Enabling syncing clock via ntp"
+    echo ":: Enabling clock syncing via ntp"
     echo "timedatectl set-ntp true"
     echo ''
-    echo "# Format drives"
+    echo ":: Formating primary partition ($FS_ROOT)"
     echo "mkfs.ext4 $(esc "$FS_ROOT")"
     echo ''
-    echo "# Mount your partitions"
+    echo ":: Mounting partitions"
     echo "mount $FS_ROOT /mnt"
     echo "mkdir -p /mnt/boot"
     echo "mount $FS_EFI /mnt/boot"
     echo ''
-    echo "# Begin installing"
+    echo ":: Starting pacstrap installer"
     echo "# (Hint: edit /etc/pacman.d/mirrorlist first to speed this up)"
     echo "pacstrap /mnt base"
     echo ''
-    echo "# Generate fstab"
+    echo ":: Generating fstab"
     echo "genfstab -U /mnt >> /mnt/etc/fstab"
     echo ''
-    echo "# Set timezone"
+    echo ":: Setting timezone"
     echo "arch-chroot /mnt sh <<END"
     echo "  ln -sf /usr/share/zoneinfo/$(esc "$TIMEZONE") /etc/localtime"
     echo "  hwclock --systohc"
     echo "END"
     echo ''
-    echo "# Set locales"
+    echo ":: Setting locales"
     echo "arch-chroot /mnt sh <<END"
     (
       IFS=$'\n'
@@ -703,12 +704,12 @@ script:write_pacstrap() {
     echo "  locale-gen"
     echo "END"
     echo ''
-    echo "# Make keyboard layout persist on boot"
+    echo ":: Making keyboard layout persist on boot"
     echo "arch-chroot /mnt sh <<END"
     echo "  echo KEYMAP=$(esc "$KEYBOARD_LAYOUT") > /etc/vconsole.conf"
     echo "END"
     echo ''
-    echo "# Set hostname"
+    echo ":: Setting hostname"
     echo "arch-chroot /mnt sh <<END"
     echo "  echo $(esc "$SYSTEM_HOSTNAME") > /etc/hostname"
     echo "  echo '127.0.0.1 localhost' >> /etc/hosts"
