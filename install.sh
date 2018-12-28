@@ -60,8 +60,7 @@ defaults() {
 # Legacy mode. Exits the installer if it fails.
 check:ensure_efi() {
   if [[ ! -d /sys/firmware/efi/efivars ]]; then
-    echo "You don't seem to be booted in EFI mode."
-    exit 1
+    quit:not_efi
   fi
 }
 
@@ -76,9 +75,7 @@ check:ensure_online() {
 # Ensure that Pacman is installed.
 check:ensure_pacman() {
   if [[ ! -e /etc/pacman.d/mirrorlist ]]; then
-    echo "You don't seem to have pacman available."
-    echo "Please run this from the Arch Linux live USB."
-    exit 1
+    quit:not_arch
   fi
 }
 
@@ -767,9 +764,9 @@ app:start() {
   app:parse_options "$*"
 
   if [[ "$SKIP_CHECKS" != 1 ]]; then
+    check:ensure_pacman
     check:ensure_efi
     check:ensure_online
-    check:ensure_pacman
   fi
 
   if [[ "$SKIP_WELCOME" != 1 ]]; then
@@ -811,6 +808,42 @@ quit:exit() {
     echo ""
   fi
   exit 1
+}
+
+quit:exit_msg() {
+  clear
+  echo ""
+  cat -
+  echo ""
+  exit 1
+}
+
+quit:not_arch() {
+  quit:exit_msg <<END
+    Arch Linux is required.
+
+    The Arch installer is meant to be run from the Arch Linux
+    Live environment. You can download Arch Linux from:
+
+        https://archlinux.org/downloads/
+
+    Also check the Arch Installer website for more details.
+END
+}
+
+quit:not_efi() {
+  quit:exit_msg <<END
+    The Arch installer only supports EFI mode.
+    
+    There doesn't seem to be efivars present in your /sys.
+    Your system is likely booted in legacy mode at the moment.
+    Consider turning on UEFI mode in your BIOS settings.
+
+    If you'd like to continue in Legacy mode, you may install
+    Arch Linux manually:
+
+        https://wiki.archlinux.org/Installation
+END
 }
 
 # Show 'please run cfdisk' message and exit
