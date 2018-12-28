@@ -24,7 +24,7 @@ curl -s https://ricostacruz.com/arch-installer/install.sh | bash
 
 ## Usage instructions
 
-1. [Download the Arch Linux live enviroment ISO][download]. This installer is meant to run inside the Arch Linux live enviroment.
+1. [Download the Arch Linux live environment ISO][download]. This installer is meant to run inside the Arch Linux live enviroment.
 
 2. [Put it into a USB][usb]. (Unless you're installing into a VM.)
 
@@ -32,7 +32,11 @@ curl -s https://ricostacruz.com/arch-installer/install.sh | bash
 
 4. Get online. (Tip: my favorite trick is using an Android phone to do [USB Tethering][android].)
 
-5. In the `root@archiso ~ #` prompt, type: `curl -s https://ricostacruz.com/arch-installer/install.sh | bash`
+5. In the `root@archiso ~ #` prompt, type:
+
+  ```sh
+  curl -s https://ricostacruz.com/arch-installer/install.sh | bash
+  ```
 
 [android]: https://www.reddit.com/r/archlinux/comments/2v8k8o/the_arch_iso_supports_android_usb_tethering/
 [download]: https://www.archlinux.org/download/
