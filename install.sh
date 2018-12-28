@@ -5,10 +5,10 @@
 app:set_defaults() {
   # Defaults
   KEYBOARD_LAYOUT="us"
-  PRIMARY_LOCALE="en_US.UTF-8"
+  PRIMARY_LOCALE="en_US.UTF-8 UTF-8"
   TIMEZONE="Asia/Manila"
 
-  HOSTNAME="my-arch"
+  SYSTEM_HOSTNAME="my-arch"
   PRIMARY_USERNAME="anon"
   PRIMARY_PASSWORD="password1"
   ROOT_PASSWORD="password1"
@@ -16,8 +16,8 @@ app:set_defaults() {
   FS_ROOT="/dev/sda2"
   FS_EFI="/dev/sda1"
 
-  DEFAULT_LOCALE="en_US.UTF-8"
-  INSTALLER_TITLE="Welcome to Arch Linux"
+  INSTALLER_TITLE="Arch Linux Installer"
+  INSTALLER_URL="https://github.com/rstacruz/arch-installer"
   ARCH_MIRROR=""
 
   # Dialog implementation to use.
@@ -27,39 +27,15 @@ app:set_defaults() {
     --title "Arch Installer" \
   )
 
-  # The default action to spawn.
-  ACTION=welcome
-
   # Dimensions
   WIDTH_MD=72
-}
 
-# Start doing stuff
-installer:run() {
-  ensure_efi
-  ensure_online
-  set_keyboard_layout
-  enable_ntp
-  partition_disk #(!)
-  mount_disks
-  update_mirrors
-  do_pacstrap
-  generate_fstab
-  do_chroot
-}
+  # This variable isn't always available
+  LINES="$(tput lines)"
+  COLUMNS="$(tput cols)"
 
-# Run in chroot
-installer:run_in_chroot() {
-  ensure_chroot
-  set_timezone
-  set_locale
-  set_keyboard_layout
-  set_hostname
-  update_hosts_file
-  set_root_password
-  install_grub_bootloader
-  create_primary_user
-  install_sudo
+  # Where to write the script
+  SCRIPT_FILE="$HOME/arch_installer.sh"
 }
 
 _() {
@@ -103,19 +79,9 @@ enable_ntp() {
   _ timedatectl set-ntp true
 }
 
-# Run config
-config:run() {
-  config:show_system_dialog
-  config:show_user_dialog
-  confirm:run
-}
-
 # Config: Show system dialog
 config:show_system_dialog() {
-  message="
-  Welcome to Arch Linux!
-  Configure your installation here, then hit 'Proceed'.
-  "
+  message="\nWelcome to Arch Linux!\nConfigure your installation here, then hit 'Next'.\n "
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Configure your system" \
     --no-cancel \
@@ -123,8 +89,8 @@ config:show_system_dialog() {
     --ok-label "Change" \
     --extra-button \
     --extra-label "Next" \
-    --menu "$message"\
-    20 $WIDTH_MD 3 \
+    --menu "$message" \
+    14 $WIDTH_MD 3 \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
     "Locale" "[en_US.UTF-8]"
@@ -132,11 +98,7 @@ config:show_system_dialog() {
 
 # Config: Show user dialog
 config:show_user_dialog() {
-  message="
-  Your user
-
-  Tell me avout the user you wanna use.  This ie a configuration dialog with some text in it that explains whats going on.
-  "
+  message="\nTell me avout the user you wanna use.  This ie a configuration dialog with some text in it that explains whats going on.\n "
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Configure your user" \
     --no-cancel \
@@ -146,18 +108,13 @@ config:show_user_dialog() {
     --extra-label "Next" \
     --menu "$message"\
     20 $WIDTH_MD 4 \
-    "Hostname" "[$HOSTNAME]" \
+    "Hostname" "[$SYSTEM_HOSTNAME]" \
     "Your username" "[$PRIMARY_USERNAME]" \
     "Your password" "[password1]" \
     "Root password" "[password1]"
 }
 
 # Show welcome message
-welcome:run() {
-  welcome:show_dialog
-  config:run
-}
-
 welcome:show_dialog() {
   message="
             .
@@ -180,43 +137,138 @@ Welcome to Arch Linux! Lets get started. Before we begin, a few things:
 - Have fun anyway!
   "
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --no-shadow \
-    --keep-window \
     --msgbox "$message" \
-    18 $WIDTH_MD \
-    --and-widget \
-    --msgbox "sup" \
-    6 32
+    "$(( $LINES - 8 ))" $WIDTH_MD
 }
 
 # Confirm
 confirm:run() {
   message="
-  Confirm these details:
+    You are now ready to install, please review the install script.
   "
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Confirm" \
-    --no-shadow \
-    --scrollbar \
     --msgbox "$message" \
-    18 $WIDTH_MD
+    7 $WIDTH_MD
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title "Install script" \
+    --backtitle "You are now ready to install! Review the install script below." \
+    --ok-label "Install now" \
+    --extra-button \
+    --extra-label "Exit" \
+    --textbox "$SCRIPT_FILE" \
+    $(( $LINES - 4 )) $COLUMNS
 }
 
-# Router
-app:route() {
-  case "$ACTION" in
-    config)
-      config:run
+script:write() {
+  (
+    echo '#!/usr/bin/env bash'
+    echo "# This file was saved to $SCRIPT_FILE."
+    echo "#"
+    echo "set -euo pipefail"
+    echo ''
+    echo "# Set keyboard layout"
+    echo "loadkeys $KEYBOARD_LAYOUT"
+    echo ''
+    echo "# Enabling syncing clock via ntp"
+    echo "timedatectl set-ntp true"
+    echo ''
+    echo "# Format drives"
+    echo "mkfs.ext4 $FS_ROOT"
+    echo ''
+    echo "# Mount your partitions"
+    echo "mount $FS_ROOT /mnt"
+    echo "mkdir -p $FS_ROOT /mnt/boot"
+    echo "mount $FS_EFI /mnt/boot"
+    echo ''
+    echo "# Begin installing"
+    echo "# TODO: vi /etc/pacman.d/mirrorlist"
+    echo "pacstrap /mnt base"
+    echo ''
+    echo "# Generate fstab"
+    echo "genfstab -U /mnt >> /mnt/etc/fstab"
+    echo ''
+    echo "# Set timezone"
+    echo "arch-chroot /mnt sh <<END"
+    echo "  ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime"
+    echo "  hwclock --systohci"
+    echo "END"
+    echo ''
+    echo "# Set locales"
+    echo "arch-chroot /mnt sh <<END"
+    echo "  echo '$PRIMARY_LOCALE' >> /etc/locale.gen"
+    echo "  locale-gen"
+    echo "END"
+    echo ''
+    echo "# Make keyboard layout persist on boot"
+    echo "arch-chroot /mnt sh <<END"
+    echo "  'KEYMAP=$KEYBOARD_LAYOUT' > /etc/vconsole.conf"
+    echo "END"
+    echo ''
+    echo "# Set hostname"
+    echo "arch-chroot /mnt sh <<END"
+    echo "  echo '$SYSTEM_HOSTNAME' > /etc/hostname"
+    echo "  echo '127.0.0.1 localhost' >> /etc/hosts"
+    echo "  echo '::1 localhost' >> /etc/hosts"
+    echo "  echo '127.0.1.1 $SYSTEM_HOSTNAME.localdomain $SYSTEM_HOSTNAME' >> /etc/hosts"
+    echo "END"
+    echo ''
+    echo "# Set root password"
+    echo "arch-chroot /mnt sh <<END"
+    echo "  echo -e '$ROOT_PASSWORD\\n$ROOT_PASSWORD' | passwd"
+    echo "END"
+    echo ''
+    echo "# GRUB boot loader"
+    echo "arch-chroot /mnt sh <<END"
+    echo "  pacman -Syu --noconfirm grub efibootmgr"
+    echo "  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB"
+    echo "  grub-mkconfig -o /boot/grub/grub.cfg"
+    echo "END"
+    echo ''
+    echo "# Create your user"
+    echo "arch-chroot /mnt sh <<END"
+    echo "  useradd -Nm -g users -G wheel,sys $PRIMARY_USERNAME"
+    echo "  echo -e '$PRIMARY_PASSWORD\\n$PRIMARY_PASSWORD' | passwd $PRIMARY_USERNAME"
+    echo "END"
+    echo ''
+    echo "# Set up sudo"
+    echo "arch-chroot /mnt sh <<END"
+    echo "  pacman -Syu --noconfirm sudo"
+    echo "  echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"
+    echo "END"
+    echo ''
+    echo "# Generated by $INSTALLER_TITLE ($INSTALLER_URL)"
+  ) > "$SCRIPT_FILE"
+}
+
+app:parse_options() {
+  while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
+    -V | --version )
+      echo version
+      exit
       ;;
-    welcome)
-      welcome:run
+    -s | --string )
+      shift; string=$1
       ;;
-    *)
-      warn "Dunno"
+    -f | --flag )
+      flag=1
       ;;
-  esac
+  esac; shift; done
+  if [[ "$1" == '--' ]]; then shift; fi
+}
+
+# Start everything
+app:start() {
+  app:parse_options
+  ensure_efi
+  ensure_online
+  welcome:show_dialog
+  config:show_system_dialog
+  config:show_user_dialog
+  script:write
+  confirm:run
 }
 
 # Lets go!
 app:set_defaults
-app:route
+app:start
