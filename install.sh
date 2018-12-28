@@ -40,6 +40,7 @@ app:set_defaults() {
 
   SKIP_WELCOME=0
   SKIP_CHECKS=0
+  ENABLE_RECIPES=0
 
   # Where to write the script
   SCRIPT_FILE="$HOME/arch_installer.sh"
@@ -321,6 +322,8 @@ config:recipes() {
 config:show_recipes_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --separate-output \
+    --no-cancel \
+    --ok-label "Next" \
     --title "Extras" \
     --checklist "Pick some other extras to install\nPress [SPACE] to select/deselect." \
     15 $WIDTH_MD 8 \
@@ -572,6 +575,10 @@ app:parse_options() {
     --skip-welcome)
       SKIP_WELCOME=1
       ;;
+    --dev)
+      # Developer options
+      ENABLE_RECIPES=1
+      ;;
     # -V | --version )
     #   echo version
     #   exit
@@ -599,7 +606,9 @@ app:start() {
 
   config:system
   config:user
-  # config:recipes TODO
+  if [[ "$ENABLE_RECIPES" == 1 ]]; then
+     config:recipes
+  fi
   script:write
   confirm:run
 }
