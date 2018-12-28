@@ -726,12 +726,21 @@ app:start() {
     welcome:show_dialog
   fi
 
-  config:system
+  # Configure the disk first
   config:disk
+
+  # Configure locales and such
+  config:system
+
+  # Configure your user
   config:user
+
+  # Configure extras
   if [[ "$ENABLE_RECIPES" == 1 ]]; then
      config:recipes
   fi
+
+  # Write the script, then show debriefing dialogs
   script:write
   confirm:run
 }
@@ -754,11 +763,13 @@ app:abort() {
 app:abort_cfdisk() {
   clear
   echo ""
-  echo "Partition your disks by typing:"
+  echo "Partition your disk by typing:"
   echo ""
   echo "  cfdisk $FS_DISK"
   echo ""
-  echo "Run the installer again afterwards."
+  echo "Run the installer again afterwards, and pick 'Skip' when asked to"
+  echo "partition your disk."
+  echo ""
   exit 1
 }
 
