@@ -52,6 +52,9 @@ defaults() {
 
   # Where timezones are stored
   ZONES_PATH="/usr/share/zoneinfo"
+
+  # If keyboard layout matches this, supress setting it
+  DEFAULT_KEYBOARD_LAYOUT="us"
 }
 
 # Start everything
@@ -666,9 +669,11 @@ script:write_fdisk() {
 
 script:write_pacstrap() {
   (
-    echo ":: Setting keyboard layout"
-    echo "loadkeys $(esc "$KEYBOARD_LAYOUT")"
-    echo ''
+    if [[ "$KEYBOARD_LAYOUT" != "$DEFAULT_KEYBOARD_LAYOUT" ]]; then
+      echo ":: Setting keyboard layout"
+      echo "loadkeys $(esc "$KEYBOARD_LAYOUT")"
+      echo ''
+    fi
     echo ":: Enabling clock syncing via ntp"
     echo "timedatectl set-ntp true"
     echo ''
@@ -704,11 +709,13 @@ script:write_pacstrap() {
     echo "  locale-gen"
     echo "END"
     echo ''
-    echo ":: Making keyboard layout persist on boot"
-    echo "arch-chroot /mnt sh <<END"
-    echo "  echo KEYMAP=$(esc "$KEYBOARD_LAYOUT") > /etc/vconsole.conf"
-    echo "END"
-    echo ''
+    if [[ "$KEYBOARD_LAYOUT" != "$DEFAULT_KEYBOARD_LAYOUT" ]]; then
+      echo ":: Making keyboard layout persist on boot"
+      echo "arch-chroot /mnt sh <<END"
+      echo "  echo KEYMAP=$(esc "$KEYBOARD_LAYOUT") > /etc/vconsole.conf"
+      echo "END"
+      echo ''
+    fi
     echo ":: Setting hostname"
     echo "arch-chroot /mnt sh <<END"
     echo "  echo $(esc "$SYSTEM_HOSTNAME") > /etc/hostname"
