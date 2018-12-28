@@ -60,6 +60,7 @@ main() {
 
   if [[ "$SKIP_CHECKS" != 1 ]]; then
     check:ensure_pacman
+    check:ensure_available_utils
     check:ensure_efi
     check:ensure_online
   fi
@@ -103,6 +104,14 @@ check:ensure_online() {
     echo "You don't seem to be online."
     exit 1
   fi
+}
+
+check:ensure_available_utils() {
+  for util in mount lsblk arch-chroot; do
+    if ! which "$util" &>/dev/null; then
+      quit:missing_util "$util"
+    fi
+  done
 }
 
 # Ensure that Pacman is installed.
@@ -830,6 +839,12 @@ quit:not_arch() {
       https://archlinux.org/downloads/
 
   Also check the Arch Installer website for more details.
+END
+}
+
+quit:missing_util() {
+  quit:exit_msg <<END
+  Cant find $1
 END
 }
 
