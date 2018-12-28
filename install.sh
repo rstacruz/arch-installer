@@ -574,6 +574,11 @@ app:run_script() {
   # Only proceed if we're root.
   if [[ $(id -u) != "0" ]]; then app:abort; return; fi
 
+  # Clear the screen, and make sure any ANSI garbage is cleaned up
+  clear
+  reset
+  clear
+
   bash "$SCRIPT_FILE"
 }
 
