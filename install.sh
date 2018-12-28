@@ -54,6 +54,39 @@ defaults() {
   ZONES_PATH="/usr/share/zoneinfo"
 }
 
+# Start everything
+main() {
+  app:parse_options "$*"
+
+  if [[ "$SKIP_CHECKS" != 1 ]]; then
+    check:ensure_pacman
+    check:ensure_efi
+    check:ensure_online
+  fi
+
+  if [[ "$SKIP_WELCOME" != 1 ]]; then
+    welcome:show_dialog
+  fi
+
+  # Configure the disk first
+  config:disk
+
+  # Configure locales and such
+  config:system
+
+  # Configure your user
+  config:user
+
+  # Configure extras
+  if [[ "$ENABLE_RECIPES" == 1 ]]; then
+     config:recipes
+  fi
+
+  # Write the script, then show debriefing dialogs
+  script:write
+  confirm:run
+}
+
 # -------------------------------------------------------------------------------
 
 # Ensures that the system is booted in UEFI mode, and not
@@ -759,39 +792,6 @@ app:parse_options() {
   if [[ "$1" == '--' ]]; then shift; fi
 }
 
-# Start everything
-app:start() {
-  app:parse_options "$*"
-
-  if [[ "$SKIP_CHECKS" != 1 ]]; then
-    check:ensure_pacman
-    check:ensure_efi
-    check:ensure_online
-  fi
-
-  if [[ "$SKIP_WELCOME" != 1 ]]; then
-    welcome:show_dialog
-  fi
-
-  # Configure the disk first
-  config:disk
-
-  # Configure locales and such
-  config:system
-
-  # Configure your user
-  config:user
-
-  # Configure extras
-  if [[ "$ENABLE_RECIPES" == 1 ]]; then
-     config:recipes
-  fi
-
-  # Write the script, then show debriefing dialogs
-  script:write
-  confirm:run
-}
-
 # -------------------------------------------------------------------------------
 
 # Quit and exit
@@ -932,4 +932,4 @@ utils:arch_logo() {
 
 # Lets go!
 defaults
-app:start "$*"
+main "$*"
