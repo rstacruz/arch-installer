@@ -163,8 +163,8 @@ config:show_partition_strategy_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "$disk" \
     --no-cancel \
-    --menu "What do you want to do with this disk?" \
-    11 $WIDTH_MD 4 \
+    --menu "\nWhat do you want to do with this disk?\n " \
+    14 $WIDTH_MD 4 \
     "Partition now" "Let me partition this disk now." \
     "Wipe" "Wipe this disk clean and start over from scratch." \
     "Skip" "I've already partitioned my disks." \
@@ -182,8 +182,8 @@ config:show_disk_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Disks" \
     --no-cancel \
-    --menu "Which disk do you want to install Arch Linux to?" \
-    11 $WIDTH_SM 4 \
+    --menu "\nLet's get started!\nWhich disk do you want to install Arch Linux to?\n " \
+    14 $WIDTH_SM 4 \
     ${pairs[*]} \
     3>&1 1>&2 2>&3
 }
@@ -203,8 +203,8 @@ config:show_partition_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "$title" \
     --no-cancel \
-    --menu "$body" \
-    15 $WIDTH_SM 8 \
+    --menu "\n$body\n " \
+    17 $WIDTH_SM 8 \
     ${pairs[*]} \
     3>&1 1>&2 2>&3
 }
@@ -373,15 +373,15 @@ form:text_input() {
 
 # Config: Show system dialog
 config:show_system_dialog() {
-  message="\nWelcome to Arch Linux!\nConfigure your installation here, then hit 'Next'.\n "
+  message="\nYou can <Change> any of these settings. Move to the <Next> screen when you're done.\n "
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Configure your system" \
+    --title "Locales" \
     --no-cancel \
     --ok-label "Change" \
     --extra-button \
     --extra-label "Next" \
     --menu "$message" \
-    14 $WIDTH_MD 3 \
+    14 $WIDTH_SM 3 \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
     "Locales" "[$(echo "${PRIMARY_LOCALE}" | xargs echo)]" \
@@ -394,7 +394,7 @@ config:user() {
     case "$?" in
       0)
         case "$choice" in
-          Hostname)
+          System\ hostname)
             SYSTEM_HOSTNAME=$( \
               form:text_input \
               "System hostname:" "$SYSTEM_HOSTNAME" \
@@ -443,7 +443,7 @@ config:show_recipes_dialog() {
 
 # Config: Show user dialog
 config:show_user_dialog() {
-  message="\nTell me about the user you're going to use day-to-day. This is a configuration dialog with some text in it that explains what's going on.\n "
+  message="\nTell me about the user you're going to use day-to-day.\n "
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Configure your user" \
     --no-cancel \
@@ -452,8 +452,8 @@ config:show_user_dialog() {
     --extra-button \
     --extra-label "Next" \
     --menu "$message"\
-    14 $WIDTH_MD 3 \
-    "Hostname" "[$SYSTEM_HOSTNAME]" \
+    13 $WIDTH_SM 3 \
+    "System hostname" "[$SYSTEM_HOSTNAME]" \
     "Your username" "[$PRIMARY_USERNAME]" \
     "Your password" "[$PRIMARY_PASSWORD]" \
     3>&1 1>&2 2>&3
@@ -510,8 +510,8 @@ confirm:show_confirm_dialog() {
     --title "We're ready!" \
     --no-cancel \
     --menu \
-    "We're ready to install!\n[R]eview the install script first before you [I]nstall." \
-    11 $WIDTH_SM 3 \
+    "\nWe're ready to install!\n[R]eview the install script first before you [I]nstall.\n " \
+    13 $WIDTH_SM 3 \
     "Review" "" \
     "Install now" "" \
     "Exit" "" \
@@ -552,11 +552,13 @@ script:write_start() {
 
 script:write_fdisk() {
   (
-    echo "# Partition $FS_DISK"
+    echo "# Wipe $FS_DISK clean"
     echo "("
     echo "  echo g      # Clear everything and start as GPT"
     echo "  echo w      # Write and save"
     echo ") | fdisk $FS_DISK"
+    echo ""
+    echo "# Create partitions in $FS_DISK"
     echo "("
     echo "  echo n      # New partition"
     echo "  echo 1      # .. partition number = 1"
