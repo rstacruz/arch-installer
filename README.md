@@ -22,6 +22,22 @@ Boot into the Arch Linux Live image, then type this for a graphical installer:
 curl -s https://ricostacruz.com/arch-installer/install.sh | bash
 ```
 
+## Usage instructions
+
+1. [Download the Arch Linux live enviroment ISO][download]. This installer is meant to run inside the Arch Linux live enviroment.
+
+2. [Put it into a USB][usb]. (Unless you're installing into a VM.)
+
+3. Boot into the Arch Linux Live environment.
+
+4. Get online. (Tip: my favorite trick is using an Android phone to do [USB Tethering][android].)
+
+5. In the `root@archiso ~ #` prompt, type: `curl -s https://ricostacruz.com/arch-installer/install.sh | bash`
+
+[android]: https://www.reddit.com/r/archlinux/comments/2v8k8o/the_arch_iso_supports_android_usb_tethering/
+[download]: https://www.archlinux.org/download/
+[usb]: https://wiki.archlinux.org/index.php/USB_flash_installation_media
+
 ## Is it safe?
 
 Yes. \*
@@ -33,18 +49,6 @@ Yes. \*
 - It tries to exit when it finds that something may not be in order. It even displays helpful troubleshooting messages whenever possible.
 
 `*` = _Mostly yes_
-
-## How do I use it?
-
-- Boot into the Arch Linux Live environment. You can do this by [Downloading Arch Linux][download] and [putting it into a USB][usb]. (You can also do this from a VM, of course.)
-
-- Get online. (Tip: my favorite trick is using an Android phone to do [USB Tethering][android].)
-
-- In the `root@archiso ~ #` prompt, type `curl -s https://ricostacruz.com/arch-installer/install.sh | bash`
-
-[android]: https://www.reddit.com/r/archlinux/comments/2v8k8o/the_arch_iso_supports_android_usb_tethering/
-[download]: https://www.archlinux.org/download/
-[usb]: https://wiki.archlinux.org/index.php/USB_flash_installation_media
 
 ## Thanks
 
