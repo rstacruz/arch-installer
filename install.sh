@@ -40,6 +40,9 @@ app:set_defaults() {
 
   # Where to write the script
   SCRIPT_FILE="$HOME/arch_installer.sh"
+
+  # Where timezones are stored
+  ZONES_PATH="/usr/share/zoneinfo"
 }
 
 # Ensures that the system is booted in UEFI mode, and not
@@ -78,7 +81,7 @@ config:system() {
             loadkeys "$KEYBOARD_LAYOUT"
             ;;
           Time\ zone)
-            TIMEZONE=$(config:choose_timezone $TIMEZONE)
+            TIMEZONE=$(config:choose_timezone "$TIMEZONE")
             ;;
           Locale)
             PRIMARY_LOCALE=$(form:text_input "Locale:" "$PRIMARY_LOCALE")
@@ -92,35 +95,52 @@ config:system() {
 }
 
 config:choose_timezone() {
-  choice="$(config:choose_timezone_dialog "$1")"
-  echo ${choice:-Etc/GMT}
+  active="$1"
+  active_region="$(dirname $active)"
+  active_zone="$(basename $active)"
+
+  region="$(config:choose_timezone_region_dialog "$active_region")"
+  if [[ -z "$region" ]]; then echo $active; return; fi
+
+  zone="$(config:choose_timezone_zone_dialog "$region" "$active_zone")"
+  if [[ -z "$zone" ]]; then echo $active; return; fi
+
+  echo "$region/$zone"
 }
 
-config:choose_timezone_dialog() {
-  ZONES_PATH="/usr/share/zoneinfo"
+config:choose_timezone_region_dialog() {
   active="$1"
-
   pairs=()
-
-  i=0
   for dir in "$ZONES_PATH"/*; do
     if [[ ! -d "$dir" ]]; then continue; fi
     dir=${dir#$ZONES_PATH/}
     if [[ "$dir" == "right" ]]; then continue; fi
     if [[ "$dir" == "posix" ]]; then continue; fi
-    pairs+=("$dir" "$dir" off 0)
-    for file in "$ZONES_PATH"/"$dir"/*; do
-      file=${file#$ZONES_PATH/$dir/}
-      status=off
-      if [[ "$active" == "$dir/$file" ]]; then status=on; fi
-      pairs+=("$dir/$file" "$file" $status 1)
-    done
+    pairs+=("$dir" "$dir")
   done
 
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Choose timezone" \
-    --treeview "Press [SPACE] to select." \
-    $(( LINES - 6 )) 64 $(( $LINES - 6 )) \
+    --no-tags \
+    --title "Time zone" \
+    --menu "Select your region:" \
+    23 $WIDTH_SM 16 \
+    ${pairs[*]} \
+    3>&1 1>&2 2>&3
+}
+
+config:choose_timezone_zone_dialog() {
+  dir="$1"
+  pairs=()
+  for fname in "$ZONES_PATH"/"$dir"/*; do
+    fname=${fname#$ZONES_PATH/$dir/}
+    pairs+=("$fname" "$fname")
+  done
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --no-tags \
+    --title "$dir" \
+    --menu "Select your time zone in ${dir}:" \
+    23 $WIDTH_SM 16 \
     ${pairs[*]} \
     3>&1 1>&2 2>&3
 }
