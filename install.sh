@@ -103,6 +103,33 @@ config:system() {
   done; set -e
 }
 
+util:list_drives() {
+  # NAME="sda" SIZE="883GB"
+  lsblk -I 8 -o "NAME,SIZE" -P -d
+}
+
+config:disk() {
+  choice="$(config:show_disk_dialog)"
+  FS_DISK="$choice"
+}
+
+config:show_disk_dialog() {
+  pairs=()
+  IFS=$'\n'
+  while read line; do
+    eval "$line"
+    pairs+=("/dev/$NAME" "$SIZE")
+  done <<< $(util:list_drives)
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title "Disks" \
+    --no-cancel \
+    --menu "Which disk do you want to install Arch Linux to?" \
+    11 $WIDTH_SM 4 \
+    ${pairs[*]} \
+    3>&1 1>&2 2>&3
+}
+
 # Returns (echoes) a timezone. `$1` currently-selected one.
 #     config:choose_timezone "Asia/Manila"
 config:choose_timezone() {
@@ -277,7 +304,7 @@ config:show_system_dialog() {
     14 $WIDTH_MD 3 \
     "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
-    "Locale" "[$(echo "${PRIMARY_LOCALE}" | xargs echo)]" \
+    "Locales" "[$(echo "${PRIMARY_LOCALE}" | xargs echo)]" \
     3>&1 1>&2 2>&3
 }
 
@@ -373,6 +400,7 @@ over a few things:
 - Have fun!
   "
   $DIALOG "${DIALOG_OPTS[@]}" \
+    --ok-label "Next" \
     --msgbox "$message" \
     "$(( $LINES - 8 ))" $WIDTH_MD
 }
@@ -605,6 +633,7 @@ app:start() {
   fi
 
   config:system
+  config:disk
   config:user
   if [[ "$ENABLE_RECIPES" == 1 ]]; then
      config:recipes
