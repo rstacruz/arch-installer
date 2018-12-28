@@ -107,7 +107,7 @@ check:ensure_online() {
 }
 
 check:ensure_available_utils() {
-  for util in mount lsblk arch-chroot; do
+  for util in mount lsblk arch-chroot dialog; do
     if ! which "$util" &>/dev/null; then
       quit:missing_util "$util"
     fi
