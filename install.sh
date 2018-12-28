@@ -813,6 +813,8 @@ quit:exit() {
 quit:exit_msg() {
   clear
   echo ""
+  echo ""
+  echo ""
   cat -
   echo ""
   exit 1
@@ -820,44 +822,42 @@ quit:exit_msg() {
 
 quit:not_arch() {
   quit:exit_msg <<END
-    Arch Linux is required.
+  Arch Linux is required.
 
-    The Arch installer is meant to be run from the Arch Linux
-    Live environment. You can download Arch Linux from:
+  The Arch installer is meant to be run from the Arch Linux
+  Live environment. You can download Arch Linux from:
 
-        https://archlinux.org/downloads/
+      https://archlinux.org/downloads/
 
-    Also check the Arch Installer website for more details.
+  Also check the Arch Installer website for more details.
 END
 }
 
 quit:not_efi() {
   quit:exit_msg <<END
-    The Arch installer only supports EFI mode.
-    
-    There doesn't seem to be efivars present in your /sys.
-    Your system is likely booted in legacy mode at the moment.
-    Consider turning on UEFI mode in your BIOS settings.
+  The Arch installer only supports EFI mode.
+  
+  There doesn't seem to be efivars present in your /sys.
+  Your system is likely booted in legacy mode at the moment.
+  Consider turning on UEFI mode in your BIOS settings.
 
-    If you'd like to continue in Legacy mode, you may install
-    Arch Linux manually:
+  If you'd like to continue in Legacy mode, you may install
+  Arch Linux manually:
 
-        https://wiki.archlinux.org/Installation
+      https://wiki.archlinux.org/Installation
 END
 }
 
 # Show 'please run cfdisk' message and exit
 quit:cfdisk() {
-  clear
-  echo ""
-  echo "Partition your disk by typing:"
-  echo ""
-  echo "  cfdisk $FS_DISK"
-  echo ""
-  echo "Run the installer again afterwards, and pick 'Skip' when asked to"
-  echo "partition your disk."
-  echo ""
-  exit 1
+  quit:exit_msg <<END
+  Partition your disk by typing:
+
+      cfdisk $FS_DISK
+
+  Run the installer again afterwards, and pick 'Skip' when asked to
+  partition your disk.
+END
 }
 
 # Show 'no ext4 partition' error message and exit
