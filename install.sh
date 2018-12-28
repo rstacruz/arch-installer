@@ -14,8 +14,8 @@ app:set_defaults() {
   PRIMARY_PASSWORD="password1"
 
   FS_DISK="/dev/sda"
-  FS_ROOT="/dev/sda2"
-  FS_EFI="/dev/sda1"
+  FS_ROOT="${FS_DISK}2"
+  FS_EFI="${FS_DISK}1"
 
   INSTALLER_TITLE="Arch Linux Installer"
   INSTALLER_URL="https://github.com/rstacruz/arch-installer"
@@ -65,18 +65,6 @@ ensure_arch() {
   fi
 }
 
-# Set keyboard layout
-set_keyboard_layout() {
-  info "Setting keyboard layout"
-  _ loadkeys $KEYBOARD_LAYOUT
-}
-
-# Enable NTP
-enable_ntp() {
-  info "Enabling syncing clock via ntp"
-  _ timedatectl set-ntp true
-}
-
 config:system() {
   set +e; while true; do
     choice="$(config:show_system_dialog)"
@@ -85,6 +73,7 @@ config:system() {
         case "$choice" in
           Keyboard\ layout)
             KEYBOARD_LAYOUT=$(form:text_input "Keyboard layout:" "$KEYBOARD_LAYOUT")
+            loadkeys "$KEYBOARD_LAYOUT"
             ;;
           Time\ zone)
             TIMEZONE=$(form:text_input "Time zone:" "$TIMEZONE")
