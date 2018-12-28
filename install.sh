@@ -206,6 +206,8 @@ script:write_fdisk() {
     echo "  echo 20     # .. Linux filesystem"
     echo "  echo w      # Write and save"
     echo ") | fdisk $FS_DISK"
+    echo ''
+    echo "# Format EFI"
     echo "mkfs.fat $FS_EFI"
     echo ''
   ) >> "$SCRIPT_FILE"
