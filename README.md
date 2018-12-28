@@ -7,7 +7,7 @@ arch-installer
 </h1>
 
 <p align='center'>
-:construction: Rico's automated Arch Linux installer (beta)
+:construction: Arch Linux installer UI (beta)
 </p>
 
 <p align='center'>
@@ -29,6 +29,8 @@ Yes. \*
 - It won't modify anything until the very last step. Feel free to explore it (even on your live system).
 
 - It won't actually partition disks for you. If you choose to 'partition now', it will simply print instructions on how to use `cfdisk` to do it yourself.
+
+- It tries to exit when it finds that something may not be in order. It even displays helpful troubleshooting messages whenever possible.
 
 `*` = _Mostly yes_
 

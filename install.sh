@@ -61,6 +61,7 @@ main() {
   if [[ "$SKIP_CHECKS" != 1 ]]; then
     check:ensure_pacman
     check:ensure_available_utils
+    check:ensure_hostname
     check:ensure_efi
     check:ensure_online
   fi
@@ -103,6 +104,12 @@ check:ensure_online() {
   if ! ping -c 1 -W 1 8.8.8.8 &>/dev/null; then
     echo "You don't seem to be online."
     exit 1
+  fi
+}
+
+check:ensure_hostname() {
+  if [[ "$(hostname)" != "archiso" ]]; then
+    quit:wrong_hostname
   fi
 }
 
@@ -839,6 +846,12 @@ quit:not_arch() {
       https://archlinux.org/downloads/
 
   Also check the Arch Installer website for more details.
+END
+}
+
+quit:wrong_hostname() {
+  quit:exit_msg <<END
+  This is not the Arch Linux Live enviroment.
 END
 }
 
