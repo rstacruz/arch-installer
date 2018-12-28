@@ -188,6 +188,9 @@ script:write_fdisk() {
     echo "# Partition $FS_DISK"
     echo "("
     echo "  echo g      # Clear everything and start as GPT"
+    echo "  echo w      # Write and save"
+    echo ") | fdisk $FS_DISK"
+    echo "("
     echo "  echo n      # New partition"
     echo "  echo 1      # .. partition number = 1"
     echo "  echo ''     # .. start sector = default"
@@ -203,6 +206,7 @@ script:write_fdisk() {
     echo "  echo 20     # .. Linux filesystem"
     echo "  echo w      # Write and save"
     echo ") | fdisk $FS_DISK"
+    echo "mkfs.fat $FS_EFI"
     echo ''
   ) >> "$SCRIPT_FILE"
 }
@@ -220,7 +224,7 @@ script:write_pacstrap() {
     echo ''
     echo "# Mount your partitions"
     echo "mount $FS_ROOT /mnt"
-    echo "mkdir -p $FS_ROOT /mnt/boot"
+    echo "mkdir -p /mnt/boot"
     echo "mount $FS_EFI /mnt/boot"
     echo ''
     echo "# Begin installing"
