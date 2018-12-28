@@ -7,7 +7,7 @@ arch-installer
 </h1>
 
 <p align='center'>
-Rico's automated Arch Linux installer
+:construction: Rico's automated Arch Linux installer (beta)
 </p>
 
 <p align='center'>
@@ -22,6 +22,16 @@ Boot into the Arch Linux Live USB, then type this for a graphical installer:
 curl -s https://ricostacruz.com/arch-installer/install.sh | bash
 ```
 
+## Is it safe?
+
+Yes. \*
+
+- It won't modify anything until the very last step. Feel free to explore it (even on your live system).
+
+- It won't actually partition disks for you. If you choose to 'partition now', it will simply print instructions on how to use `cfdisk` to do it yourself.
+
+`*` = _Mostly yes_
+
 ## Thanks
 
 **arch-installer** © 2018+, Rico Sta. Cruz. Released under the [MIT] License.<br>
@@ -34,5 +44,5 @@ Authored and maintained by Rico Sta. Cruz with help from contributors ([list][co
 [![](https://img.shields.io/github/followers/rstacruz.svg?style=social&label=@rstacruz)](https://github.com/rstacruz) &nbsp;
 [![](https://img.shields.io/twitter/follow/rstacruz.svg?style=social&label=@rstacruz)](https://twitter.com/rstacruz)
 
-[MIT]: http://mit-license.org/
+[mit]: http://mit-license.org/
 [contributors]: http://github.com/rstacruz/arch-installer/contributors
