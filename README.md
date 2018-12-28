@@ -16,12 +16,6 @@ arch-installer
 
 <br>
 
-Boot into the Arch Linux Live image, then type this for a graphical installer:
-
-```sh
-curl -s https://ricostacruz.com/arch-installer/install.sh | bash
-```
-
 ## Usage instructions
 
 1. [Download the Arch Linux live environment ISO][download]. This installer is meant to run inside the Arch Linux live enviroment.
