@@ -172,19 +172,6 @@ config:show_user_dialog() {
     3>&1 1>&2 2>&3
 }
 
-utils:arch_logo() {
-  echo "
-            .
-           /#\\
-          /###\\                     #     | .   __
-         /#^###\\       a#e #%' a#'e 6##%  | | |'  | |   | \\ /
-        /##P^q##\\    .oOo# #   #    #  #  | | |   | |   |  X
-       /##(   )##\\   %OoO# #   %#e' #  #  | | |   | '._.| / \\
-      /###P   q##^\\
-     /P^         ^q\\
-  "
-}
-
 # Show welcome message
 welcome:show_dialog() {
   message="
@@ -212,13 +199,6 @@ over a few things:
 
 # Confirm
 confirm:run() {
-  message="
-    You are now ready to install, please review the install script.
-  "
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --msgbox "$message" \
-    7 $WIDTH_MD
-
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Install script" \
     --backtitle "You are now ready to install! Review the install script below." \
@@ -239,11 +219,9 @@ confirm:run() {
 app:run_script() {
   clear
   echo ''
-  utils:arch_logo
+  echo "     Ready! Press [ENTER] to start installation now."
   echo ''
-  echo "     Ready! Press [ENTER] to start installation."
-  echo ''
-  read
+  read x
   bash "$SCRIPT_FILE"
 }
 
@@ -416,6 +394,19 @@ app:abort() {
   clear
   echo "Installer aborted"
   exit 1
+}
+
+utils:arch_logo() {
+  echo "
+            .
+           /#\\
+          /###\\                     #     | .   __
+         /#^###\\       a#e #%' a#'e 6##%  | | |'  | |   | \\ /
+        /##P^q##\\    .oOo# #   #    #  #  | | |   | |   |  X
+       /##(   )##\\   %OoO# #   %#e' #  #  | | |   | '._.| / \\
+      /###P   q##^\\
+     /P^         ^q\\
+  "
 }
 
 # Lets go!
