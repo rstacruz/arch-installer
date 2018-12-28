@@ -85,7 +85,8 @@ check:ensure_valid_partitions() {
   if [[ "$SKIP_EXT4_CHECK" == 0 ]]; then
     if ! util:disk_has_partition "$disk" "ext4"; then
       clear
-      echo "You don't seem to have an 'ext4' partition in $disk."
+      echo "You don't seem to have an 'ext4' partition in '$disk' yet."
+      echo "You may need to partition your disk before continuing."
       echo ""
       lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
       echo ""
@@ -102,7 +103,8 @@ check:ensure_valid_partitions() {
   if [[ "$SKIP_EFI_CHECK" == 0 ]]; then
     if ! util:disk_has_partition "$disk" "vfat"; then
       clear
-      echo "You don't seem to have an 'vfat' partition in $disk."
+      echo "You don't seem to have an 'vfat' partition in '$disk' yet."
+      echo "You may need to partition your disk before continuing."
       echo ""
       lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
       echo ""
