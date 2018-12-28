@@ -7,7 +7,7 @@ app:set_defaults() {
   # Defaults
   KEYBOARD_LAYOUT=${KEYBOARD_LAYOUT:-us}
   PRIMARY_LOCALE="en_US.UTF-8 UTF-8"
-  TIMEZONE="Asia/Manila"
+  TIMEZONE=${TIMEZONE:-Etc/GMT}
 
   SYSTEM_HOSTNAME="my-arch"
   PRIMARY_USERNAME="anon"
@@ -78,7 +78,7 @@ config:system() {
             loadkeys "$KEYBOARD_LAYOUT"
             ;;
           Time\ zone)
-            TIMEZONE=$(form:text_input "Time zone:" "$TIMEZONE")
+            TIMEZONE=$(config:choose_timezone $TIMEZONE)
             ;;
           Locale)
             PRIMARY_LOCALE=$(form:text_input "Locale:" "$PRIMARY_LOCALE")
@@ -89,6 +89,40 @@ config:system() {
       *) app:abort ;; # "Cancel"
     esac
   done; set -e
+}
+
+config:choose_timezone() {
+  choice="$(config:choose_timezone_dialog "$1")"
+  echo ${choice:-Etc/GMT}
+}
+
+config:choose_timezone_dialog() {
+  ZONES_PATH="/usr/share/zoneinfo"
+  active="$1"
+
+  pairs=()
+
+  i=0
+  for dir in "$ZONES_PATH"/*; do
+    if [[ ! -d "$dir" ]]; then continue; fi
+    dir=${dir#$ZONES_PATH/}
+    if [[ "$dir" == "right" ]]; then continue; fi
+    if [[ "$dir" == "posix" ]]; then continue; fi
+    pairs+=("$dir" "$dir" off 0)
+    for file in "$ZONES_PATH"/"$dir"/*; do
+      file=${file#$ZONES_PATH/$dir/}
+      status=off
+      if [[ "$active" == "$dir/$file" ]]; then status=on; fi
+      pairs+=("$dir/$file" "$file" $status 1)
+    done
+  done
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title "Choose timezone" \
+    --treeview "Press [SPACE] to select." \
+    $(( LINES - 6 )) 64 $(( $LINES - 6 )) \
+    ${pairs[*]} \
+    3>&1 1>&2 2>&3
 }
 
 # Form helper
@@ -220,11 +254,11 @@ confirm:show_script_dialog() {
 
 confirm:show_confirm_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "" \
+    --title "We're ready!" \
     --no-cancel \
     --menu \
     "We're ready to install!\n[R]eview the install script first before you [I]nstall." \
-    12 $WIDTH_SM 3 \
+    11 $WIDTH_SM 3 \
     "Review" "" \
     "Install now" "" \
     "Exit" "" \
