@@ -25,7 +25,7 @@ app:set_defaults() {
   DIALOG=${DIALOG:-dialog}
   DIALOG_OPTS=( \
     --no-collapse \
-    --backtitle "$INSTALLER_TITLE" \
+    --backtitle "$INSTALLER_TITLE (press [Esc] twice to exit)" \
     --title "Arch Installer" \
   )
 
@@ -183,9 +183,8 @@ config:show_user_dialog() {
     3>&1 1>&2 2>&3
 }
 
-# Show welcome message
-welcome:show_dialog() {
-  message="
+utils:arch_logo() {
+  echo "
             .
            /#\\
           /###\\                     #     | .   __
@@ -194,6 +193,13 @@ welcome:show_dialog() {
        /##(   )##\\   %OoO# #   %#e' #  #  | | |   | '._.| / \\
       /###P   q##^\\
      /P^         ^q\\
+  "
+}
+
+# Show welcome message
+welcome:show_dialog() {
+  message="
+$(utils:arch_logo)
 
 Welcome to Arch Linux! Lets get started. Before we begin, let's go
 over a few things:
@@ -232,6 +238,24 @@ confirm:run() {
     --extra-label "Exit" \
     --textbox "$SCRIPT_FILE" \
     $(( $LINES - 6 )) $COLUMNS
+
+  if [[ $? == 0 ]]; then
+    app:run_script
+  else
+    app:abort
+  fi
+}
+
+# Run the script
+app:run_script() {
+  clear
+  echo ''
+  utils:arch_logo
+  echo ''
+  echo "     Ready! Press [ENTER] to start installation."
+  echo ''
+  read
+  bash "$SCRIPT_FILE"
 }
 
 # Write script
