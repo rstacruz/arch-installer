@@ -14,8 +14,11 @@ app:set_defaults() {
   PRIMARY_PASSWORD="password1"
 
   FS_DISK="/dev/sda"
-  FS_ROOT="${FS_DISK}2"
-  FS_EFI="${FS_DISK}1"
+  FS_ROOT="$FS_DISK""2"
+  FS_EFI="$FS_DISK""1"
+
+  # Wipe the disk?
+  FS_DO_FDISK=0
 
   INSTALLER_TITLE="Arch Linux Installer"
   INSTALLER_URL="https://github.com/rstacruz/arch-installer"
@@ -51,7 +54,7 @@ app:set_defaults() {
 
 # Ensures that the system is booted in UEFI mode, and not
 # Legacy mode. Exits the installer if it fails.
-ensure_efi() {
+check:ensure_efi() {
   if [[ ! -d /sys/firmware/efi/efivars ]]; then
     echo "You don't seem to be booted in EFI mode."
     exit 1
@@ -59,19 +62,25 @@ ensure_efi() {
 }
 
 # Exits the installer if were offline.
-ensure_online() {
+check:ensure_online() {
   if ! ping -c 1 -W 1 8.8.8.8 &>/dev/null; then
     echo "You don't seem to be online."
     exit 1
   fi
 }
 
-ensure_arch() {
+check:ensure_pacman() {
   if [[ ! -e /etc/pacman.d/mirrorlist ]]; then
     echo "You don't seem to have pacman available."
     echo "Please run this from the Arch Linux live USB."
     exit 1
   fi
+}
+
+# Ensure there are available partitions.
+check:ensure_valid_partitions() {
+  disk="$1"
+  # TODO
 }
 
 config:system() {
@@ -107,10 +116,59 @@ util:list_drives() {
   # NAME="sda" SIZE="883GB"
   lsblk -I 8 -o "NAME,SIZE" -P -d
 }
+util:list_partitions() {
+  disk="$1"
+  # NAME="sda1" SIZE="883GB"
+  lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
+    | grep 'TYPE="part"' \
+    | grep "$(basename $disk)"
+}
 
 config:disk() {
   choice="$(config:show_disk_dialog)"
   FS_DISK="$choice"
+
+  strategy="$(config:show_partition_strategy_dialog "$FS_DISK")"
+  case "$strategy" in
+    Partition*)
+      app:abort_cfdisk
+      ;;
+    Wipe)
+      FS_DO_FDISK=1
+      ;;
+    Skip)
+      # TODO: ensure there are available partitions.
+      check:ensure_valid_partitions "$FS_DISK"
+
+      # Pick EFI partition
+      choice="$(config:show_partition_dialog \
+        "$FS_DISK" \
+        "Linux partition" \
+        "Choose partition to install Linux into:")"
+      FS_ROOT="$choice"
+
+      # Pick Linux partition
+      choice="$(config:show_partition_dialog \
+        "$FS_DISK" \
+        "EFI Partition" \
+        "Choose partition to install the EFI boot loader into:")"
+      FS_EFI="$choice"
+      ;;
+  esac
+}
+
+config:show_partition_strategy_dialog() {
+  disk="$1"
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title "$disk" \
+    --no-cancel \
+    --menu "What do you want to do with this disk?" \
+    11 $WIDTH_MD 4 \
+    "Partition now" "Let me partition this disk now." \
+    "Wipe" "Wipe this disk clean and start over from scratch." \
+    "Skip" "I've already partitioned my disks." \
+    3>&1 1>&2 2>&3
 }
 
 config:show_disk_dialog() {
@@ -129,6 +187,28 @@ config:show_disk_dialog() {
     ${pairs[*]} \
     3>&1 1>&2 2>&3
 }
+
+config:show_partition_dialog() {
+  disk="$1"
+  title="$2"
+  body="$3"
+  pairs=()
+  IFS=$'\n'
+  while read line; do
+    eval "$line"
+    label="$(printf "[%8s]  %s / %s" "$SIZE" "$FSTYPE" "${LABEL:-No label}")"
+    pairs+=("/dev/$NAME" "$label")
+  done <<< $(util:list_partitions "$disk")
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title "$title" \
+    --no-cancel \
+    --menu "$body" \
+    15 $WIDTH_SM 8 \
+    ${pairs[*]} \
+    3>&1 1>&2 2>&3
+}
+
 
 # Returns (echoes) a timezone. `$1` currently-selected one.
 #     config:choose_timezone "Asia/Manila"
@@ -440,14 +520,22 @@ confirm:show_confirm_dialog() {
 
 # Run the script
 app:run_script() {
+  # Only proceed if we're root.
+  if [[ $(id -u) != "0" ]]; then app:abort; return; fi
+
   bash "$SCRIPT_FILE"
 }
 
 # Write script
 script:write() {
   script:write_start
-  script:write_fdisk
+
+  if [[ "$FS_DO_FDISK" == "1" ]]; then
+    script:write_fdisk
+  fi
+
   script:write_pacstrap
+  script:write_recipes
   script:write_end
 }
 
@@ -544,6 +632,11 @@ script:write_pacstrap() {
     echo "  echo '::1 localhost' >> /etc/hosts"
     echo "  echo '127.0.1.1 $SYSTEM_HOSTNAME.localdomain $SYSTEM_HOSTNAME' >> /etc/hosts"
     echo "END"
+  ) >> "$SCRIPT_FILE"
+}
+
+script:write_recipes() {
+  (
     recipes:setup_grub
     recipes:create_user
     recipes:install_sudo
@@ -592,6 +685,7 @@ recipes:install_sudo() {
   echo "  echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"
   echo "END"
 }
+
 # Parse options
 app:parse_options() {
   while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
@@ -623,9 +717,9 @@ app:start() {
   app:parse_options "$*"
 
   if [[ "$SKIP_CHECKS" != 1 ]]; then
-    ensure_efi
-    ensure_online
-    ensure_arch
+    check:ensure_efi
+    check:ensure_online
+    check:ensure_pacman
   fi
 
   if [[ "$SKIP_WELCOME" != 1 ]]; then
@@ -654,6 +748,17 @@ app:abort() {
     echo "Feel free to edit it and see if everything is in order!"
     echo ""
   fi
+  exit 1
+}
+
+app:abort_cfdisk() {
+  clear
+  echo ""
+  echo "Partition your disks by typing:"
+  echo ""
+  echo "  cfdisk $FS_DISK"
+  echo ""
+  echo "Run the installer again afterwards."
   exit 1
 }
 
