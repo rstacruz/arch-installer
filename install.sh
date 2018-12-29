@@ -713,8 +713,10 @@ script:write_pacstrap() {
     echo ''
     echo ":: Mounting partitions"
     echo "mount $FS_ROOT /mnt"
-    echo "mkdir -p /mnt/boot"
-    echo "mount $FS_EFI /mnt/boot"
+    if [[ "$FS_EFI" != "$NO_BOOTLOADER" ]]; then
+      echo "mkdir -p /mnt/boot"
+      echo "mount $FS_EFI /mnt/boot"
+    fi
     echo ''
     echo ":: Starting pacstrap installer"
     echo "# (Hint: edit /etc/pacman.d/mirrorlist first to speed this up)"
