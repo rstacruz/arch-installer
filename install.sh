@@ -705,11 +705,6 @@ script:write_fdisk() {
 
 script:write_pacstrap() {
   (
-    if [[ "$KEYBOARD_LAYOUT" != "$DEFAULT_KEYBOARD_LAYOUT" ]]; then
-      echo ":: Setting keyboard layout"
-      echo "loadkeys $(esc "$KEYBOARD_LAYOUT")"
-      echo ''
-    fi
     echo ":: Enabling clock syncing via ntp"
     echo "timedatectl set-ntp true"
     echo ''
