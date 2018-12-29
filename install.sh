@@ -127,11 +127,19 @@ check:ensure_hostname() {
 }
 
 check:ensure_available_utils() {
-  for util in mount lsblk arch-chroot dialog; do
-    if ! which "$util" &>/dev/null; then
-      quit:missing_util "$util"
-    fi
-  done
+  check:ensure_util util-linux mount
+  check:ensure_util util-linux lsblk
+  check:ensure_util dialog dialog
+  check:ensure_util arch-install-scripts arch-chroot
+  check:ensure_util arch-install-scripts pacstrap
+}
+
+check:ensure_util() {
+  local pkg="$1"
+  local exec="$2"
+  if ! which "$exec" &>/dev/null; then
+    quit:missing_util "$exec" "$pkg"
+  fi
 }
 
 # Ensure that Pacman is installed.
@@ -846,6 +854,7 @@ app:parse_options() {
       SKIP_ARCHISO_CHECK=1
       SKIP_SANITY_CHECKS=1
       ;;
+    --skip-sanity-check) SKIP_SANITY_CHECKS=1 ;;
     --skip-archiso-check) SKIP_ARCHISO_CHECK=1 ;;
     --skip-welcome) SKIP_WELCOME=1 ;;
     --skip-vfat-check) SKIP_VFAT_CHECK=1 ;;
@@ -927,7 +936,18 @@ END
 
 quit:missing_util() {
   quit:exit_msg <<END
-  Cant find $1
+  '$1' is needed to install Arch Linux.
+
+  The Arch installer is meant to be run from the Arch Linux
+  Live environment. You can download Arch Linux from the Arch
+  Linux website.
+
+      https://archlinux.org/downloads/
+
+  If you're trying to run this installer from within Arch Linux,
+  you may need to install the '$2' package.
+
+      sudo pacman -Syu $2
 END
 }
 
