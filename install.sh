@@ -3,7 +3,7 @@
 set -eo pipefail
 
 # Default config / global state
-defaults() {
+set_defaults() {
   # Defaults
   KEYBOARD_LAYOUT=${KEYBOARD_LAYOUT:-us}
   PRIMARY_LOCALE="en_US.UTF-8 UTF-8"
@@ -21,7 +21,6 @@ defaults() {
   FS_DO_FDISK=0
 
   INSTALLER_TITLE="Arch Linux Installer"
-  INSTALLER_URL="https://github.com/rstacruz/arch-installer"
   ARCH_MIRROR=""
 
   # Dialog implementation to use.
@@ -50,12 +49,20 @@ defaults() {
 
   # Where to write the script
   SCRIPT_FILE="$HOME/arch_installer.sh"
+}
 
+set_constants() {
   # Where timezones are stored
   ZONES_PATH="/usr/share/zoneinfo"
 
   # If keyboard layout matches this, supress setting it
   DEFAULT_KEYBOARD_LAYOUT="us"
+
+  # Label for skipping a boot loader
+  NO_BOOTLOADER="Skip"
+
+  # Installer URL
+  INSTALLER_URL="https://github.com/rstacruz/arch-installer"
 }
 
 # Start everything
@@ -194,7 +201,7 @@ config:disk() {
     Wipe)
       FS_DO_FDISK=1
       ;;
-    Skip)
+    Use*)
       # TODO: ensure there are available partitions.
       check:ensure_valid_partitions "$FS_DISK"
 
@@ -207,6 +214,7 @@ config:disk() {
 
       # Pick Linux partition
       choice="$(config:show_partition_dialog \
+        --null "$NO_BOOTLOADER" "Don't install a boot loader" \
         "$FS_DISK" \
         "EFI Partition" \
         "Choose partition to install the EFI boot loader into:\n(This is usually an 'vfat' partition.)")"
@@ -225,7 +233,7 @@ config:show_partition_strategy_dialog() {
     14 $WIDTH_MD 4 \
     "Partition now" "Let me partition this disk now." \
     "Wipe" "Wipe this disk clean and start over from scratch." \
-    "Skip" "I've already partitioned my disks." \
+    "Use existing" "I've already partitioned my disks." \
     3>&1 1>&2 2>&3
 }
 
@@ -246,17 +254,30 @@ config:show_disk_dialog() {
     3>&1 1>&2 2>&3
 }
 
+# Lets the user select a partition
 config:show_partition_dialog() {
-  disk="$1"
-  title="$2"
-  body="$3"
-  pairs=()
+  local null_tag=
+  local null_label=
+  if [[ "$1" == "--null" ]]; then
+    shift; null_tag="$1"; shift; null_label="$1"; shift
+  fi
+  local disk="$1"
+  local title="$2"
+  local body="$3"
+  local pairs=()
+
+  # Add partition to `$pairs`
   IFS=$'\n'
   while read line; do
     eval "$line"
-    label="$(printf "[%8s]  %s / %s" "$SIZE" "$FSTYPE" "${LABEL:-No label}")"
+    label="$(printf "[%8s]  %s - %s" "$SIZE" "$FSTYPE" "${LABEL:-No label}")"
     pairs+=("/dev/$NAME" "$label")
   done <<< $(util:list_partitions "$disk")
+
+  # If `--null` is passed, add that option at the end
+  if [[ -n "$null_tag" ]]; then
+    pairs+=("$null_tag" "$null_label")
+  fi
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "$title" \
@@ -549,12 +570,12 @@ over a few things:
   dialog at the end of this process; nothing destructive will be
   done before that.
 
+- Press [Esc] twice at any time to exit this installer.
+
 - Be sure to read the Arch Linux wiki. There's no substitute to
   understanding everything that's happening :)
 
-- Press [Esc] twice at any time to exit this installer.
-
-- Have fun!
+  $INSTALLER_URL
   "
   $DIALOG "${DIALOG_OPTS[@]}" \
     --ok-label "Next" \
@@ -732,7 +753,9 @@ script:write_pacstrap() {
 
 script:write_recipes() {
   (
-    recipes:setup_grub
+    if [[ "$FS_EFI" != "$NO_BOOTLOADER" ]]; then
+      recipes:setup_grub
+    fi
     recipes:create_user
     recipes:install_sudo
   ) >> "$SCRIPT_FILE"
@@ -987,5 +1010,6 @@ esc() {
 # -------------------------------------------------------------------------------
 
 # Lets go!
-defaults
+set_defaults
+set_constants
 main "$*"
