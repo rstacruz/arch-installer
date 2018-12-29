@@ -87,16 +87,15 @@ main() {
   # Configure the disk first
   config:disk
 
+  if [[ "$FS_ROOT" == "$FS_EFI" ]]; then
+    quit:invalid_partition_selection
+  fi
+
   # Configure locales and such
   config:system
 
   # Configure your user
   config:user
-
-  # Configure extras
-  if [[ "$ENABLE_RECIPES" == 1 ]]; then
-     config:recipes
-  fi
 
   # Write the script, then show debriefing dialogs
   script:write
@@ -217,7 +216,7 @@ config:disk() {
         --null "$NO_BOOTLOADER" "Don't install a boot loader" \
         "$FS_DISK" \
         "EFI Partition" \
-        "Choose partition to install the EFI boot loader into:\n(This is usually an 'vfat' partition.)")"
+        "Choose partition to install the EFI boot loader into:")"
       FS_EFI="$choice"
       ;;
   esac
@@ -258,9 +257,11 @@ config:show_disk_dialog() {
 config:show_partition_dialog() {
   local null_tag=
   local null_label=
+
   if [[ "$1" == "--null" ]]; then
     shift; null_tag="$1"; shift; null_label="$1"; shift
   fi
+
   local disk="$1"
   local title="$2"
   local body="$3"
@@ -282,6 +283,7 @@ config:show_partition_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "$title" \
     --no-cancel \
+    --ok-label "Use" \
     --menu "\n$body\n " \
     17 $WIDTH_SM 8 \
     ${pairs[*]} \
@@ -528,12 +530,11 @@ config:show_recipes_dialog() {
     --no-cancel \
     --ok-label "Next" \
     --title "Extras" \
-    --checklist "Pick some other extras to install\nPress [SPACE] to select/deselect." \
-    15 $WIDTH_MD 8 \
-    "grub" "Install GRUB boot loader (recommended)" on \
-    "sudo" "Install sudo (recommended)" on \
+    --checklist "Pick some other extras to install\nPress (Space) to select/deselect." \
+    15 $WIDTH_LG 8 \
     "base-devel" "Install base-devel" off \
-    "yay" "Install yay the AUR helper" off \
+    "yay" "Install yay, the AUR helper" off \
+    "networkmanager" "Install NetworkManager" off \
     3>&1 1>&2 2>&3
 }
 
@@ -590,31 +591,40 @@ confirm:run() {
   choice="$(confirm:show_confirm_dialog)"
   echo $choice
   case "$choice" in
-    I | Install\ now) app:run_script ;;
-    R | Review) confirm:show_script_dialog; confirm:run ;;
+    Install*) app:run_script ;;
+    Review*) confirm:show_script_dialog; confirm:run ;;
+    Additional*) config:recipes; script:write; confirm:run ;;
     *) quit:exit ;;
   esac
 }
 
 confirm:show_script_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Install script" \
+    --title "" \
     --scrollbar \
-    --backtitle "You are now ready to install! Review the install script below." \
     --textbox "$SCRIPT_FILE" \
     $(( $LINES - 6 )) $WIDTH_LG
 }
 
 confirm:show_confirm_dialog() {
+  local message="\n"
+  message+="We're ready to install!\n"
+  message+="You can now (I)nstall a minimal Arch Linux system. "
+  message+="We recommend (R)eviewing the install script before proceeding.\n"
+  message+=" "
+
+  local recipe_opts=("Additional options" "")
+  if [[ "$ENABLE_RECIPES" != 1 ]]; then recipe_opts=(); fi
+  
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "We're ready!" \
+    --title "Install now" \
     --no-cancel \
-    --menu \
-    "\nWe're ready to install!\n[R]eview the install script first before you [I]nstall.\n " \
-    13 $WIDTH_SM 3 \
-    "Review" "" \
+    --menu "$message" \
+    17 $WIDTH_SM 4 \
     "Install now" "" \
-    "Exit" "" \
+    "Review script" "" \
+    "${recipe_opts[@]}" \
+    "Exit installer" "" \
     3>&1 1>&2 2>&3
 }
 
@@ -857,8 +867,8 @@ quit:exit() {
 
 quit:exit_msg() {
   clear
-  echo ""
-  echo ""
+  echo -e "\033[0;33m$INSTALLER_TITLE\033[0;m"
+  echo -e "\033[0;33m$(printf "%${COLUMNS}s" | tr ' ' '-')\033[0;m"
   echo ""
   cat -
   echo ""
@@ -926,12 +936,18 @@ END
 # Show 'please run cfdisk' message and exit
 quit:cfdisk() {
   quit:exit_msg <<END
-  Partition your disk by typing:
+  You can partition your disk by typing:
 
       cfdisk $FS_DISK
 
-  Run the installer again afterwards, and pick 'Skip' when asked to
-  partition your disk.
+  Run the installer again afterwards, and pick 'Use existing' when
+  asked to partition your disk.
+END
+}
+
+quit:invalid_partition_selection() {
+  quit:exit_msg <<END
+  The Linux partition can't be the same as the EFI partition.
 END
 }
 
