@@ -1,15 +1,17 @@
 # Connecting via wifi
 
-> _TODO_
-
 ```bash
-# Look for devices
+# Find interface names:
 iw dev
 ```
 
+If you don't see your wifi device above, then you may need some drivers that don't come pre-installed in the Arch Linux live environment. In this case, try connecting via Ethernet or Android tethering instead.
+
 ```bash
 wifi-menu -o wlp2s0
-#            ^^^^^^ change this
+#            ^^^^^^
+#            replace this with the
+#            actual interface name
 ```
 
 ## References
