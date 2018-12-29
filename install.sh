@@ -738,6 +738,7 @@ script:write_pacstrap() {
       for locale in ${PRIMARY_LOCALE[*]}; do
         echo "  echo $(esc "$locale") >> /etc/locale.gen"
       done
+      echo "  echo LANG=$(esc $(util:get_primary_locale)) > /etc/locale.conf"
     )
     echo "  locale-gen"
     echo "END"
@@ -998,6 +999,12 @@ util:list_partitions() {
   lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
     | grep 'TYPE="part"' \
     | grep "$(basename $disk)"
+}
+
+# "en_US.UTF-8 UTF-8" -> "en_US.UTF-8"
+util:get_primary_locale() {
+  local str="${PRIMARY_LOCALE[0]}"
+  echo "${str% *}"
 }
 
 # Random utils
