@@ -800,7 +800,7 @@ recipes:create_user() {
   echo ":: Creating user $(esc "$PRIMARY_USERNAME")"
   echo "arch-chroot /mnt sh <<END"
   echo "  useradd -Nm -g users -G wheel,sys $(esc "$PRIMARY_USERNAME")"
-  echo "  echo -e $(esc "$PRIMARY_PASSWORD")'\\n'$(esc "$PRIMARY_PASSWORD")' | passwd $(esc "$PRIMARY_USERNAME")"
+  echo "  echo -e $(esc "$PRIMARY_PASSWORD")\"\\n\"$(esc "$PRIMARY_PASSWORD") | passwd $(esc "$PRIMARY_USERNAME")"
   echo "END"
 }
 
