@@ -664,7 +664,8 @@ script:write_start() {
     echo "# This file was saved to $SCRIPT_FILE."
     echo "#"
     echo "set -euo pipefail"
-    echo '::() { echo -e "\n\033[1;32m==>\033[0;1m" "$*""\033[0m"; }'
+    echo '::() { echo -e "\n\033[0;1m==>\033[1;32m" "$*""\033[0m"; }'
+    echo 'if [[ "$(id -u)" != 0 ]]; then :: "No root priviledges."; exit 1; fi'
     echo ''
   ) > "$SCRIPT_FILE"
   chmod +x "$SCRIPT_FILE"
@@ -851,18 +852,15 @@ app:parse_options() {
 
 # Quit and exit
 quit:exit() {
-  clear
-  echo ""
-  if [[ -f "$SCRIPT_FILE" ]]; then
-    cd "$(dirname "$SCRIPT_FILE")"
-    echo "You can proceed with the installation via:"
-    echo ""
-    echo "  ./$(basename "$SCRIPT_FILE")"
-    echo ""
-    echo "Feel free to edit it and see if everything is in order!"
-    echo ""
-  fi
-  exit 1
+  local cmd="./$(basename "$SCRIPT_FILE")"
+  if [[ "$(pwd)" != "$(dirname "$SCRIPT_FILE")" ]]; then cmd="cd ; $cmd"; fi
+  quit:exit_msg <<END
+  You can proceed with the installation via:
+
+      $cmd
+
+  Feel free to edit it and see if everything is in order!
+END
 }
 
 quit:exit_msg() {
