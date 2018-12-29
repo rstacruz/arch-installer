@@ -63,6 +63,11 @@ set_constants() {
 
   # Installer URL
   INSTALLER_URL="https://github.com/rstacruz/arch-installer"
+
+  # Where the ESP partition is to be mounted
+  ESP_PATH="/boot"
+
+  EDITOR=${EDITOR:-nano}
 }
 
 # Start everything
@@ -597,7 +602,6 @@ over a few things:
 # Confirmation step
 confirm:run() {
   choice="$(confirm:show_confirm_dialog)"
-  echo $choice
   case "$choice" in
     Install*) app:run_script ;;
     Review*) confirm:show_script_dialog; confirm:run ;;
@@ -607,11 +611,7 @@ confirm:run() {
 }
 
 confirm:show_script_dialog() {
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "" \
-    --scrollbar \
-    --textbox "$SCRIPT_FILE" \
-    $(( $LINES - 6 )) $WIDTH_LG
+  "$EDITOR" "$SCRIPT_FILE"
 }
 
 confirm:show_confirm_dialog() {
@@ -669,7 +669,13 @@ script:write() {
 script:write_start() {
   (
     echo '#!/usr/bin/env bash'
-    echo "# This file was saved to $SCRIPT_FILE."
+    echo "#"
+    echo "#  ------------------------------------------------------------------"
+    echo "#  Please review the install script below. After you exit out of your"
+    echo "#  editor, Arch Linux will begin to install."
+    echo "#  ------------------------------------------------------------------"
+    echo "#  This file was saved to $SCRIPT_FILE."
+    echo "#  ------------------------------------------------------------------"
     echo "#"
     echo "set -euo pipefail"
     echo '::() { echo -e "\n\033[0;1m==>\033[1;32m" "$*""\033[0m"; }'
@@ -681,13 +687,13 @@ script:write_start() {
 
 script:write_fdisk() {
   (
-    echo ":: Wiping disk $FS_DISK"
+    echo ":: 'Wiping disk $FS_DISK'"
     echo "("
     echo "  echo g      # Clear everything and start as GPT"
     echo "  echo w      # Write and save"
     echo ") | fdisk $FS_DISK"
     echo ""
-    echo ":: Creating partitions in $FS_DISK"
+    echo ":: 'Creating partitions in $FS_DISK'"
     echo "("
     echo "  echo n      # New partition"
     echo "  echo 1      # .. partition number = 1"
@@ -705,7 +711,7 @@ script:write_fdisk() {
     echo "  echo w      # Write and save"
     echo ") | fdisk $FS_DISK"
     echo ''
-    echo ":: Formating EFI partition $FS_EFI"
+    echo ":: 'Formating ESP partition $FS_EFI'"
     echo "mkfs.fat $FS_EFI"
     echo ''
   ) >> "$SCRIPT_FILE"
@@ -713,33 +719,33 @@ script:write_fdisk() {
 
 script:write_pacstrap() {
   (
-    echo ":: Enabling clock syncing via ntp"
+    echo ":: 'Enabling clock syncing via ntp'"
     echo "timedatectl set-ntp true"
     echo ''
-    echo ":: Formating primary partition $FS_ROOT"
+    echo ":: 'Formating primary partition $FS_ROOT'"
     echo "mkfs.ext4 $(esc "$FS_ROOT")"
     echo ''
-    echo ":: Mounting partitions"
+    echo ":: 'Mounting partitions'"
     echo "mount $FS_ROOT /mnt"
     if [[ "$FS_EFI" != "$NO_BOOTLOADER" ]]; then
       echo "mkdir -p /mnt/boot"
       echo "mount $FS_EFI /mnt/boot"
     fi
     echo ''
-    echo ":: Starting pacstrap installer"
+    echo ":: 'Starting pacstrap installer'"
     echo "# (Hint: edit /etc/pacman.d/mirrorlist first to speed this up)"
     echo "pacstrap /mnt base"
     echo ''
-    echo ":: Generating fstab"
+    echo ":: 'Generating fstab'"
     echo "genfstab -U /mnt >> /mnt/etc/fstab"
     echo ''
-    echo ":: Setting timezone"
+    echo ":: 'Setting timezone'"
     echo "arch-chroot /mnt sh <<END"
     echo "  ln -sf /usr/share/zoneinfo/$(esc "$TIMEZONE") /etc/localtime"
     echo "  hwclock --systohc"
     echo "END"
     echo ''
-    echo ":: Setting locales"
+    echo ":: 'Setting locales'"
     echo "arch-chroot /mnt sh <<END"
     (
       IFS=$'\n'
@@ -752,13 +758,13 @@ script:write_pacstrap() {
     echo "END"
     echo ''
     if [[ "$KEYBOARD_LAYOUT" != "$DEFAULT_KEYBOARD_LAYOUT" ]]; then
-      echo ":: Making keyboard layout persist on boot"
+      echo ":: 'Making keyboard layout persist on boot'"
       echo "arch-chroot /mnt sh <<END"
       echo "  echo KEYMAP=$(esc "$KEYBOARD_LAYOUT") > /etc/vconsole.conf"
       echo "END"
       echo ''
     fi
-    echo ":: Setting hostname"
+    echo ":: 'Setting hostname'"
     echo "arch-chroot /mnt sh <<END"
     echo "  echo $(esc "$SYSTEM_HOSTNAME") > /etc/hostname"
     echo "  echo '127.0.0.1 localhost' >> /etc/hosts"
@@ -795,18 +801,18 @@ script:write_end() {
 # Recipe for setting up grub
 recipes:setup_grub() {
   echo ''
-  echo ":: Installing GRUB boot loader"
+  echo ":: 'Installing GRUB boot loader'"
   echo "arch-chroot /mnt sh <<END"
   echo "  pacman -Syu --noconfirm grub efibootmgr"
-  echo "  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB"
-  echo "  grub-mkconfig -o /boot/grub/grub.cfg"
+  echo "  grub-install --target=x86_64-efi --efi-directory=$ESP_PATH --bootloader-id=GRUB"
+  echo "  grub-mkconfig -o $ESP_PATH/grub/grub.cfg"
   echo "END"
 }
 
 # Recipe for creating user
 recipes:create_user() {
   echo ''
-  echo ":: Creating user $(esc "$PRIMARY_USERNAME")"
+  echo ":: 'Creating user $(esc "$PRIMARY_USERNAME")'"
   echo "arch-chroot /mnt sh <<END"
   echo "  useradd -Nm -g users -G wheel,sys $(esc "$PRIMARY_USERNAME")"
   echo "  echo -e $(esc "$PRIMARY_PASSWORD")\"\\n\"$(esc "$PRIMARY_PASSWORD") | passwd $(esc "$PRIMARY_USERNAME")"
@@ -816,7 +822,7 @@ recipes:create_user() {
 # Recipe for installing sudo
 recipes:install_sudo() {
   echo ''
-  echo ":: Setting up sudo"
+  echo ":: 'Setting up sudo'"
   echo "arch-chroot /mnt sh <<END"
   echo "  pacman -Syu --noconfirm sudo"
   echo "  echo '%wheel ALL=(ALL) ALL' | sudo EDITOR='tee -a' visudo"
@@ -827,7 +833,7 @@ recipes:install_sudo() {
 # this doesn't work right now lol
 recipes:install_yay() {
   echo ''
-  echo ":: Setting up yay"
+  echo ":: 'Setting up yay'"
   echo "# https://github.com/Jguer/yay"
   echo "arch-chroot /mnt sh <<END"
   echo "  pacman -Syu --noconfirm --needed git base-devel"
@@ -848,7 +854,6 @@ app:parse_options() {
     --vip)
       # Go through the VIP entrance and skip some checkpoints.
       # Use this only for testing purposes!
-      SKIP_WELCOME=1
       SKIP_VFAT_CHECK=1
       SKIP_EXT4_CHECK=1
       SKIP_ARCHISO_CHECK=1
