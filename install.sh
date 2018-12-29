@@ -811,7 +811,18 @@ recipes:install_sudo() {
   echo ":: Setting up sudo"
   echo "arch-chroot /mnt sh <<END"
   echo "  pacman -Syu --noconfirm sudo"
-  echo "  echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"
+  echo "  echo '%wheel ALL=(ALL) ALL' | sudo EDITOR='tee -a' visudo"
+  echo "END"
+}
+
+# Install yay, the aur helper
+recipes:install_yay() {
+  echo ''
+  echo ":: Setting up yay"
+  echo "# https://github.com/Jguer/yay"
+  echo "arch-chroot /mnt sh <<END"
+  echo "  pacman -Syu --noconfirm --needed git base-develudo l
+  echo "  echo 'cd && rm -rf yay && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si' | sudo -i -u $(esc "$PRIMARY_USERNAME")'"
   echo "END"
 }
 
