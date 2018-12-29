@@ -816,13 +816,19 @@ recipes:install_sudo() {
 }
 
 # Install yay, the aur helper
+# this doesn't work right now lol
 recipes:install_yay() {
   echo ''
   echo ":: Setting up yay"
   echo "# https://github.com/Jguer/yay"
   echo "arch-chroot /mnt sh <<END"
-  echo "  pacman -Syu --noconfirm --needed git base-develudo l
-  echo "  echo 'cd && rm -rf yay && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si' | sudo -i -u $(esc "$PRIMARY_USERNAME")'"
+  echo "  pacman -Syu --noconfirm --needed git base-devel"
+  echo "  rm -rf yay-bin"
+  echo "  git clone https://aur.archlinux.org/yay-bin.git"
+  echo "  chown -R $(esc "$PRIMARY_USERNAME") yay-bin"
+  echo "  cd yay-bin"
+  echo "  su $(esc "$PRIMARY_USERNAME") makepkg"
+  echo "  pacman -U yay-bin*"
   echo "END"
 }
 
