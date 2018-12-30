@@ -77,7 +77,7 @@ set_constants() {
 
 # Start everything
 main() {
-  app:parse_options "$*"
+  app:parse_options "$@"
 
   if [[ "$SKIP_SANITY_CHECKS" != 1 ]]; then
     check:ensure_pacman
@@ -214,7 +214,7 @@ config:disk() {
       quit:cfdisk
       ;;
     Wipe*)
-      choice="$(config:show_disk_dialog)"
+      choice="$(config:show_disk_dialog --wipe)"
       FS_DISK="$choice"
       FS_DO_FDISK=1
       ;;
@@ -228,7 +228,7 @@ config:disk() {
       FS_EFI=""
       ;;
     Format*)
-      choice="$(config:show_disk_dialog)"
+      choice="$(config:show_disk_dialog --format)"
       FS_DISK="$choice"
 
       # Are they the same?
@@ -275,15 +275,19 @@ config:show_disk_dialog() {
     pairs+=("/dev/$NAME" "$SIZE")
   done <<< $(util:list_drives)
 
-  message="\n"
-  message+="Let's get started!\n"
-  message+="Which disk do you want to install Arch Linux to?"
-  message+=" "
+  local warning=
+  local title="Which disk do you want to install Arch Linux into?"
+
+  if [[ "$1" == "--wipe" ]]; then
+    warning="(This entire disk will be wiped!)"
+  else
+    warning="(Pick partitions from this drive in the next screen.)"
+  fi
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Disks" \
     --no-cancel \
-    --menu "$message" \
+    --menu "\n$title\n$warning\n " \
     14 $WIDTH_SM 4 \
     ${pairs[*]} \
     3>&1 1>&2 2>&3
@@ -1138,4 +1142,4 @@ esc() {
 # Lets go!
 set_defaults
 set_constants
-main "$*"
+main "$@"
