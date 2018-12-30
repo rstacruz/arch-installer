@@ -40,6 +40,7 @@ set_defaults() {
   WIDTH_SM=60
   WIDTH_MD=72
 
+  # Skip flags
   SKIP_WELCOME=0
   SKIP_EXT4_CHECK=0
   SKIP_VFAT_CHECK=0
@@ -728,8 +729,8 @@ script:write_pacstrap() {
     echo ":: 'Mounting partitions'"
     echo "mount $FS_ROOT /mnt"
     if [[ "$FS_EFI" != "$NO_BOOTLOADER" ]]; then
-      echo "mkdir -p /mnt/boot"
-      echo "mount $FS_EFI /mnt/boot"
+      echo "mkdir -p /mnt$ESP_PATH"
+      echo "mount $FS_EFI /mnt$ESP_PATH"
     fi
     echo ''
     echo ":: 'Starting pacstrap installer'"
