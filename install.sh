@@ -17,6 +17,9 @@ set_defaults() {
   FS_ROOT="$FS_DISK""2"
   FS_EFI="$FS_DISK""1"
 
+  # If this is 1, don't mount stuff, just use /mnt as is.
+  FS_USE_MNT=0
+
   # Wipe the disk?
   FS_DO_FDISK=0
 
@@ -44,6 +47,7 @@ set_defaults() {
   SKIP_WELCOME=0
   SKIP_EXT4_CHECK=0
   SKIP_VFAT_CHECK=0
+  SKIP_MNT_CHECK=0
   SKIP_ARCHISO_CHECK=0
   SKIP_SANITY_CHECKS=0
   ENABLE_RECIPES=0
@@ -93,7 +97,8 @@ main() {
   # Configure the disk first
   config:disk
 
-  if [[ "$FS_ROOT" == "$FS_EFI" ]]; then
+  # (FS_ROOT will be blank if /mnt is to be used.)
+  if [[ "$FS_USE_MNT" == "0" ]] && [[ "$FS_ROOT" == "$FS_EFI" ]]; then
     quit:invalid_partition_selection
   fi
 
@@ -203,19 +208,30 @@ config:system() {
 }
 
 config:disk() {
-  choice="$(config:show_disk_dialog)"
-  FS_DISK="$choice"
-
-  strategy="$(config:show_partition_strategy_dialog "$FS_DISK")"
+  strategy="$(config:show_partition_strategy_dialog)"
   case "$strategy" in
     Partition*)
       quit:cfdisk
       ;;
     Wipe)
+      choice="$(config:show_disk_dialog)"
+      FS_DISK="$choice"
       FS_DO_FDISK=1
       ;;
-    Use*)
-      # TODO: ensure there are available partitions.
+    Use\ /mnt*)
+      if ! util:is_mnt_mounted; then quit:mnt_not_mounted; fi
+      config:warn_dialog
+      $DIALOG "${DIALOG_OPTS[@]}" \
+        --msgbox "/mnt will be used as is. You'll also need to set up a boot loader yourself." 10 40
+      FS_USE_MNT=1
+      FS_ROOT=""
+      FS_EFI=""
+      ;;
+    Use\ existing*)
+      choice="$(config:show_disk_dialog)"
+      FS_DISK="$choice"
+
+      # Are they the same?
       check:ensure_valid_partitions "$FS_DISK"
 
       # Pick EFI partition
@@ -237,16 +253,17 @@ config:disk() {
 }
 
 config:show_partition_strategy_dialog() {
-  disk="$1"
+  local title="How do you want to install Arch Linux on your drive?"
 
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "$disk" \
+    --title "Choose disk strategy" \
     --no-cancel \
-    --menu "\nWhat do you want to do with this disk?\n " \
+    --menu "\n$title\n " \
     14 $WIDTH_MD 4 \
-    "Partition now" "Let me partition this disk now." \
-    "Wipe" "Wipe this disk clean and start over from scratch." \
-    "Use existing" "I've already partitioned my disks." \
+    "Partition manually" "Let me partition this disk now." \
+    "Wipe drive" "Wipe my drive clean and start over from scratch." \
+    "Use existing partitions" "I've already partitioned my disks." \
+    "Use /mnt" "Use whatever is mounted on /mnt." \
     3>&1 1>&2 2>&3
 }
 
@@ -258,10 +275,15 @@ config:show_disk_dialog() {
     pairs+=("/dev/$NAME" "$SIZE")
   done <<< $(util:list_drives)
 
+  message="\n"
+  message+="Let's get started!\n"
+  message+="Which disk do you want to install Arch Linux to?"
+  message+=" "
+
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "Disks" \
     --no-cancel \
-    --menu "\nLet's get started!\nWhich disk do you want to install Arch Linux to?\n " \
+    --menu "$message" \
     14 $WIDTH_SM 4 \
     ${pairs[*]} \
     3>&1 1>&2 2>&3
@@ -723,16 +745,22 @@ script:write_pacstrap() {
     echo ":: 'Enabling clock syncing via ntp'"
     echo "timedatectl set-ntp true"
     echo ''
-    echo ":: 'Formating primary partition $FS_ROOT'"
-    echo "mkfs.ext4 $(esc "$FS_ROOT")"
-    echo ''
-    echo ":: 'Mounting partitions'"
-    echo "mount $FS_ROOT /mnt"
-    if [[ "$FS_EFI" != "$NO_BOOTLOADER" ]]; then
-      echo "mkdir -p /mnt$ESP_PATH"
-      echo "mount $FS_EFI /mnt$ESP_PATH"
+    if [[ "$FS_USE_MNT" == "1" ]]; then
+      echo ":: 'Using /mnt'"
+      echo '# Not mounting any drives, assuming /mnt is already available.'
+      echo ''
+    else
+      echo ":: 'Formating primary partition $FS_ROOT'"
+      echo "mkfs.ext4 $(esc "$FS_ROOT")"
+      echo ''
+      echo ":: 'Mounting partitions'"
+      echo "mount $FS_ROOT /mnt"
+      if [[ "$FS_EFI" != "$NO_BOOTLOADER" ]]; then
+        echo "mkdir -p /mnt$ESP_PATH"
+        echo "mount $FS_EFI /mnt$ESP_PATH"
+      fi
+      echo ''
     fi
-    echo ''
     echo ":: 'Starting pacstrap installer'"
     echo "# (Hint: edit /etc/pacman.d/mirrorlist first to speed this up)"
     echo "pacstrap /mnt base"
@@ -858,8 +886,10 @@ app:parse_options() {
       SKIP_VFAT_CHECK=1
       SKIP_EXT4_CHECK=1
       SKIP_ARCHISO_CHECK=1
+      SKIP_MNT_CHECK=1
       SKIP_SANITY_CHECKS=1
       ;;
+    --skip-mnt-check) SKIP_MNT_CHECK=1 ;;
     --skip-sanity-check) SKIP_SANITY_CHECKS=1 ;;
     --skip-archiso-check) SKIP_ARCHISO_CHECK=1 ;;
     --skip-welcome) SKIP_WELCOME=1 ;;
@@ -901,6 +931,30 @@ quit:exit_msg() {
   cat -
   echo ""
   exit 1
+}
+
+quit:mnt_not_mounted() {
+  quit:exit_msg <<END
+  Please mount partitions manually into /mnt.
+
+  This option is available if you would like full control over your
+  filesystems. This is great for special setups like btrfs, encryption,
+  and other needs.
+
+  It doesn't seem like anything is mounted into /mnt yet. You may
+  need to partition your drive, format the partitions, and mount
+  them manually. An example would be:
+
+      # (Just an example, don't follow this.)
+      mkfs.vfat -F32 /dev/sda1
+      mkfs.ext4 /dev/sda2
+      mount /dev/sda1 /mnt/boot
+      mount /dev/sda2 /mnt
+
+  Run the installer again after mounting into /mnt.
+
+  (You can skip this check with '--skip-mnt-check'.)
+END
 }
 
 quit:not_arch() {
@@ -977,7 +1031,7 @@ quit:cfdisk() {
   quit:exit_msg <<END
   You can partition your disk by typing:
 
-      cfdisk $FS_DISK
+      cfdisk
 
   Run the installer again afterwards, and pick 'Use existing' when
   asked to partition your disk.
@@ -1048,6 +1102,13 @@ util:list_partitions() {
 util:get_primary_locale() {
   local str="${PRIMARY_LOCALE[0]}"
   echo "${str% *}"
+}
+
+util:is_mnt_mounted() {
+  if [[ "$SKIP_MNT_CHECK" == 1 ]]; then return; fi
+
+  # Grep returns non-zero if it's not found
+  lsblk -o 'MOUNTPOINT' | grep '/mnt' &>/dev/null
 }
 
 # Random utils
