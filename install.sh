@@ -35,6 +35,7 @@ set_defaults() {
   )
 
   INSTALL_GRUB=0
+  INSTALL_YAY=1 # TODO add a way to turn this off
 
   # This variable isn't always available
   LINES="$(tput lines)"
@@ -822,6 +823,9 @@ script:write_recipes() {
     fi
     recipes:create_user
     recipes:install_sudo
+    if [[ "$INSTALL_YAY" == "1" ]]; then
+      recipes:install_yay
+    fi
   ) >> "$SCRIPT_FILE"
 }
 
@@ -876,15 +880,27 @@ recipes:install_sudo() {
 recipes:install_yay() {
   echo ''
   echo ":: 'Setting up yay'"
-  echo "# https://github.com/Jguer/yay"
-  echo "arch-chroot /mnt sh <<END"
+  echo "# Yay is an AUR helper. See: https://github.com/Jguer/yay"
+  echo "arch-chroot /mnt bash <<END"
+  echo "  # Enable colors in Pacman. Not needed, but why not?"
+  echo "  sed -i 's/^#Color/Color/' /etc/pacman.conf"
+  echo ""
+  echo "  # Install dependencies"
   echo "  pacman -Syu --noconfirm --needed git base-devel"
+  echo "  cd /home/$(esc "$PRIMARY_USERNAME")"
+  echo ""
+  echo "  # Download PKGBUILD and built it"
   echo "  rm -rf yay-bin"
-  echo "  git clone https://aur.archlinux.org/yay-bin.git"
-  echo "  chown -R $(esc "$PRIMARY_USERNAME") yay-bin"
+  echo "  su $(esc "$PRIMARY_USERNAME") -c 'git clone https://aur.archlinux.org/yay-bin.git'"
   echo "  cd yay-bin"
-  echo "  su $(esc "$PRIMARY_USERNAME") makepkg"
-  echo "  pacman -U yay-bin*"
+  echo "  su $(esc "$PRIMARY_USERNAME") -c 'makepkg'"
+  echo ""
+  echo "  # Install"
+  echo "  pacman -U --noconfirm yay-bin*.tar.xz"
+  echo ""
+  echo "  # Clean up"
+  echo "  cd .."
+  echo "  rm -rf yay-bin"
   echo "END"
 }
 
