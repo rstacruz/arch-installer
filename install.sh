@@ -213,7 +213,7 @@ config:disk() {
     Partition*)
       quit:cfdisk
       ;;
-    Wipe)
+    Wipe*)
       choice="$(config:show_disk_dialog)"
       FS_DISK="$choice"
       FS_DO_FDISK=1
@@ -260,7 +260,7 @@ config:show_partition_strategy_dialog() {
     --no-cancel \
     --menu "\n$title\n " \
     14 $WIDTH_MD 4 \
-    "Partition manually" "Let me partition this disk now." \
+    "Partition manually" "Let me partition my disk now." \
     "Wipe drive" "Wipe my drive clean and start over from scratch." \
     "Use existing partitions" "I've already partitioned my disks." \
     "Use /mnt" "Use whatever is mounted on /mnt." \
@@ -945,11 +945,15 @@ quit:mnt_not_mounted() {
   need to partition your drive, format the partitions, and mount
   them manually. An example would be:
 
-      # (Just an example, don't follow this.)
+      # (Just an example, don't follow this exactly!)
       mkfs.vfat -F32 /dev/sda1
       mkfs.ext4 /dev/sda2
       mount /dev/sda1 /mnt/boot
       mount /dev/sda2 /mnt
+
+  The Arch wiki has a guide:
+
+      https://wiki.archlinux.org/index.php/installation_guide#Partition_the_disks
 
   Run the installer again after mounting into /mnt.
 
