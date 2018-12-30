@@ -759,7 +759,7 @@ script:write_pacstrap() {
     echo ''
     if [[ "$FS_USE_MNT" == "1" ]]; then
       echo ":: 'Using /mnt'"
-      echo 'echo "(Not mounting any drives, assuming /mnt is already available.)"'
+      echo '# (Not mounting any drives, assuming /mnt is already available.)'
       echo ''
     else
       echo ":: 'Formating primary partition $FS_ROOT'"
@@ -1133,7 +1133,7 @@ util:is_mnt_mounted() {
   if [[ "$SKIP_MNT_CHECK" == 1 ]]; then return; fi
 
   # Grep returns non-zero if it's not found
-  lsblk -o 'MOUNTPOINT' | grep '/mnt' &>/dev/null
+  findmnt '/mnt' | grep '/mnt' &>/dev/null
 }
 
 # Random utils
