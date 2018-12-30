@@ -227,7 +227,7 @@ config:disk() {
       FS_ROOT=""
       FS_EFI=""
       ;;
-    Use\ existing*)
+    Format*)
       choice="$(config:show_disk_dialog)"
       FS_DISK="$choice"
 
@@ -260,10 +260,10 @@ config:show_partition_strategy_dialog() {
     --no-cancel \
     --menu "\n$title\n " \
     14 $WIDTH_MD 4 \
+    "Wipe drive" "Wipe my drive completely." \
+    "Format partitions" "I've already partitioned my disks." \
     "Partition manually" "Let me partition my disk now." \
-    "Wipe drive" "Wipe my drive clean and start over from scratch." \
-    "Use existing partitions" "I've already partitioned my disks." \
-    "Use /mnt" "Use whatever is mounted on /mnt." \
+    "Use /mnt" "(Advanced) Use whatever is mounted on /mnt." \
     3>&1 1>&2 2>&3
 }
 
