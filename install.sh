@@ -77,6 +77,7 @@ set_constants() {
 
   # Label for skipping a boot loader
   NO_BOOTLOADER="Skip"
+  ADD_NEW_TAG="None"
 
   # Installer URL
   INSTALLER_URL="https://github.com/rstacruz/arch-installer"
@@ -268,10 +269,15 @@ config:disk() {
 # Pick Linux partition ($FS_ROOT)
 config:pick_root_partition() {
   choice="$(config:show_partition_dialog \
+    --add "$ADD_NEW_TAG" "...Add a new partition" \
     "$FS_DISK" \
     "Linux partition" \
     "Choose partition to install Linux into:\n(This is usually an 'ext4' partition.)")"
-  FS_ROOT="$choice"
+  if [[ "$choice" == "$ADD_NEW_TAG" ]]; then
+    quit:cfdisk "$FS_DISK"
+  else
+    FS_ROOT="$choice"
+  fi
 }
 
 # Pick EFI partition ($FS_EFI)
@@ -279,7 +285,8 @@ config:pick_efi_partition() {
   body="Choose partition to install the EFI boot loader into:"
   subtext="This should be an EFI partition, typically a fat32."
   choice="$(config:show_partition_dialog \
-    --null "$NO_BOOTLOADER" "Don't install a boot loader" \
+    --add "$ADD_NEW_TAG" "...Add a new partition" \
+    --add "$NO_BOOTLOADER" "...Don't install a boot loader" \
     "$FS_DISK" \
     "EFI Partition" \
     "$body\n$subtext")"
@@ -334,12 +341,18 @@ config:show_disk_dialog() {
 
 # Lets the user select a partition
 config:show_partition_dialog() {
-  local null_tag=
-  local null_label=
+  local extra_pairs=()
 
-  if [[ "$1" == "--null" ]]; then
-    shift; null_tag="$1"; shift; null_label="$1"; shift
-  fi
+  while true; do
+    case "$1" in
+      --add)
+        extra_pairs+=("$2" "$3")
+        shift; shift; shift
+        ;;
+      *)
+        break ;;
+    esac
+  done
 
   local disk="$1"
   local title="$2"
@@ -354,11 +367,6 @@ config:show_partition_dialog() {
     pairs+=("/dev/$NAME" "$label")
   done <<< $(util:list_partitions "$disk")
 
-  # If `--null` is passed, add that option at the end
-  if [[ -n "$null_tag" ]]; then
-    pairs+=("$null_tag" "$null_label")
-  fi
-
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title "$title" \
     --no-cancel \
@@ -366,6 +374,7 @@ config:show_partition_dialog() {
     --menu "\n$body\n " \
     17 $WIDTH_SM 8 \
     ${pairs[*]} \
+    ${extra_pairs[*]} \
     3>&1 1>&2 2>&3
 }
 
@@ -877,7 +886,7 @@ script:write_fdisk() {
     echo "  echo n      # New partition"
     echo "  echo 1      # .. partition number = 1"
     echo "  echo ''     # .. start sector = default"
-    echo "  echo +500M  # .. last sector"
+    echo "  echo +250M  # .. last sector"
     echo "  echo t      # Change type"
     echo "  echo 1      # .. type = 1 (EFI)"
     echo "  echo n      # New partition"
@@ -1284,10 +1293,24 @@ quit:cfdisk() {
   quit:exit_msg <<END
   You can partition your disk by typing:
 
-      cfdisk
+      cfdisk $1
 
-  Run the installer again afterwards, and pick 'Use existing' when
-  asked to partition your disk.
+  ${RESET}There are 2 partitions you need to create:
+
+      1. An EFI partition
+         (size '250M', Type 'EFI System')
+
+      2. Linux partition
+         (Type 'Linux file system')
+
+  You'll want to format them afterwards:
+
+      mkfs.fat -F32 /dev/sdXX
+      mkfs.ext4 /dev/sdYY
+      # (replace sdXX and sdYY with the actual partitions.)
+
+  Run the installer again afterwards, and pick 'Choose partitions'
+  when asked to partition your disk.
 END
 }
 
