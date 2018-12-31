@@ -826,6 +826,7 @@ app:run_script() {
 # Write script
 script:write() {
   script:write_start
+  script:write_pre_hints
 
   if [[ "$FS_DO_FDISK" == "1" ]]; then
     script:write_fdisk
@@ -853,6 +854,14 @@ script:write_start() {
     echo ''
   ) > "$SCRIPT_FILE"
   chmod +x "$SCRIPT_FILE"
+}
+
+script:write_pre_hints() {
+  cat >> "$SCRIPT_FILE" <<EOF
+### Tip: Uncomment below to edit the mirror list before installing!
+# $EDITOR /etc/pacman.d/mirrorlist
+EOF
+  echo '' >> "$SCRIPT_FILE"
 }
 
 script:write_fdisk() {
@@ -913,7 +922,6 @@ script:write_pacstrap() {
       echo ''
     fi
     echo ":: 'Starting pacstrap installer'"
-    echo "# (Hint: edit /etc/pacman.d/mirrorlist first to speed this up)"
     echo "pacstrap /mnt base"
     echo ''
     echo ":: 'Generating fstab'"
