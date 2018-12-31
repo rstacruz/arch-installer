@@ -240,30 +240,43 @@ config:disk() {
       choice="$(config:show_disk_dialog --format)"
       FS_DISK="$choice"
 
-      # Are they the same?
+      # Are the required partitions available?
       check:ensure_valid_partitions "$FS_DISK"
 
-      # Pick EFI partition
-      choice="$(config:show_partition_dialog \
-        "$FS_DISK" \
-        "Linux partition" \
-        "Choose partition to install Linux into:\n(This is usually an 'ext4' partition.)")"
-      FS_ROOT="$choice"
+      # Pick other patitions
+      config:pick_root_partition
+      config:pick_efi_partition
 
-      # Pick Linux partition
-      choice="$(config:show_partition_dialog \
-        --null "$NO_BOOTLOADER" "Don't install a boot loader" \
-        "$FS_DISK" \
-        "EFI Partition" \
-        "Choose partition to install the EFI boot loader into:")"
-      if [[ "$choice" == "$NO_BOOTLOADER" ]]; then
-        FS_EFI=""
-      else
-        INSTALL_GRUB=1
-        FS_EFI="$choice"
-      fi
+      validate_partition:efi
+      validate_partition:root
       ;;
   esac
+}
+
+# Pick Linux partition ($FS_ROOT)
+config:pick_root_partition() {
+  choice="$(config:show_partition_dialog \
+    "$FS_DISK" \
+    "Linux partition" \
+    "Choose partition to install Linux into:\n(This is usually an 'ext4' partition.)")"
+  FS_ROOT="$choice"
+}
+
+# Pick EFI partition ($FS_EFI)
+config:pick_efi_partition() {
+  body="Choose partition to install the EFI boot loader into:"
+  subtext="This should be an EFI partition, typically a fat32."
+  choice="$(config:show_partition_dialog \
+    --null "$NO_BOOTLOADER" "Don't install a boot loader" \
+    "$FS_DISK" \
+    "EFI Partition" \
+    "$body\n$subtext")"
+  if [[ "$choice" == "$NO_BOOTLOADER" ]]; then
+    FS_EFI=""
+  else
+    INSTALL_GRUB=1
+    FS_EFI="$choice"
+  fi
 }
 
 config:show_partition_strategy_dialog() {
@@ -608,6 +621,46 @@ config:show_user_dialog() {
     "Your username" "[$PRIMARY_USERNAME]" \
     "Your password" "[$PRIMARY_PASSWORD]" \
     3>&1 1>&2 2>&3
+}
+
+# -------------------------------------------------------------------------------
+
+# See if the EFI partition is mountable.
+validate_partition:efi() {
+  if ! validate_partition:check "$FS_EFI"; then
+    quit:format_efi_first "$FS_EFI"
+  fi
+}
+
+# See if the root partition is mountable.
+validate_partition:root() {
+  if ! validate_partition:check "$FS_ROOT"; then
+    quit:format_root_first "$FS_ROOT"
+  fi
+}
+
+# See if a partition is mountable.
+validate_partition:check() {
+  local dev="$1"
+  clear
+  if ! util:is_root; then
+    echo "We're now going to mount '$dev' (read-only) to see if it's valid."
+  fi
+  set +e
+  local mountpoint="/tmp/mount"
+  mkdir -p "$mountpoint"
+
+  # Mount it, save the result to check later
+  util:sudo 'mount -o ro "$FS_EFI" "$mountpoint"'
+  result="$?"
+
+  # Force-unmount it
+  util:sudo 'umount "$mountpoint"' || true
+  rmdir "$mountpoint"
+
+  if [[ "$result" != "0" ]]; then
+    return 1
+  fi
 }
 
 # -------------------------------------------------------------------------------
@@ -1079,6 +1132,26 @@ quit:cfdisk() {
 END
 }
 
+quit:format_efi_first() {
+  quit:exit_msg <<END
+  Format the EFI partition first.
+
+      mkfs.fat -F32 "$1"
+
+  Run the installer again afterwards.
+END
+}
+
+quit:format_root_first() {
+  quit:exit_msg <<END
+  Format the root partition first. It might be something like so:
+
+      mkfs.ext4 "$1"
+
+  Run the installer again afterwards.
+END
+}
+
 quit:invalid_partition_selection() {
   quit:exit_msg <<END
   The Linux partition can't be the same as the EFI partition.
@@ -1131,6 +1204,23 @@ warning:show_mnt_warning() {
 }
 
 # -------------------------------------------------------------------------------
+
+# Return 0 if we're root, 1 otherwise
+util:is_root() {
+  [[ "$(id -u)" == "0" ]]
+}
+
+# Run something as a superuser
+util:sudo() {
+  local cmd="$1"
+  if util:is_root; then
+    $cmd
+  elif which sudo &>/dev/null; then
+    sudo $cmd
+  else
+    su -c "$cmd"
+  fi
+}
 
 # Dev helpers: List available drives
 util:list_drives() {
