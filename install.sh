@@ -109,7 +109,7 @@ main() {
   fi
 
   # Configure the disk first
-  config:disk
+  config:disk_strategy
 
   # (FS_ROOT will be blank if /mnt is to be used.)
   if [[ "$FS_USE_MNT" == "0" ]] && [[ "$FS_ROOT" == "$FS_EFI" ]]; then
@@ -199,6 +199,7 @@ check:not_mounted() {
 
 # -------------------------------------------------------------------------------
 
+# Configure keyboard layout, timezone, locale
 config:system() {
   set +e; while true; do
     choice="$(config:show_system_dialog)"
@@ -228,7 +229,8 @@ config:system() {
   done; set -e
 }
 
-config:disk() {
+# Configure disk strategy (partition, wipe, /mnt)
+config:disk_strategy() {
   strategy="$(config:show_partition_strategy_dialog)"
   case "$strategy" in
     Partition*)
