@@ -868,7 +868,7 @@ script:write_start() {
 script:write_pre_hints() {
   cat >> "$SCRIPT_FILE" <<EOF
 ### Tip: Uncomment below to edit the mirror list before installing!
-# $EDITOR /etc/pacman.d/mirrorlist
+# $EDITOR /etc/pacman.d/mirrorlist; reset
 EOF
   echo '' >> "$SCRIPT_FILE"
 }
@@ -1016,6 +1016,9 @@ arch-chroot /mnt sh <<END
   ### Install a browser
   # pacman -S --noconfirm chromium
   # pacman -S --noconfirm firefox
+
+  ### For VirtualBox guests
+  # yay -S --noconfirm virtualbox-guest-dkms
 END
 EOF
 }
@@ -1295,7 +1298,7 @@ quit:cfdisk() {
 
       cfdisk $1
 
-  ${RESET}There are 2 partitions you need to create:
+  There are 2 partitions you need to create:
 
       1. An EFI partition
          (size '250M', Type 'EFI System')
