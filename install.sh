@@ -35,7 +35,7 @@ set_defaults() {
   DIALOG_OPTS=( \
     --no-collapse \
     --backtitle "$INSTALLER_TITLE (press [Esc] twice to exit)" \
-    --title "Arch Installer" \
+    --title " $INSTALLER_TITLE " \
   )
 
   INSTALL_GRUB=0
@@ -312,7 +312,7 @@ config:show_partition_strategy_dialog() {
   local title="How do you want to install Arch Linux on your drive?"
 
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Choose disk strategy" \
+    --title " Choose disk strategy " \
     --no-cancel \
     --menu "\n$title\n " \
     14 $WIDTH_MD 4 \
@@ -341,7 +341,7 @@ config:show_disk_dialog() {
   fi
 
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Disks" \
+    --title " Disks " \
     --no-cancel \
     --menu "\n$title\n$warning\n " \
     14 $WIDTH_SM 4 \
@@ -378,7 +378,7 @@ config:show_partition_dialog() {
   done <<< $(util:list_partitions "$disk")
 
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "$title" \
+    --title " $title " \
     --no-cancel \
     --ok-label "Use" \
     --menu "\n$body\n " \
@@ -439,7 +439,7 @@ form:select() {
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --no-tags \
-    --title "$title" \
+    --title " $title " \
     --default-item "$active" \
     --menu "" \
     23 $WIDTH_SM 16 \
@@ -462,7 +462,7 @@ form:multi_select() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --no-tags \
     --separate-output \
-    --title "$title" \
+    --title " $title " \
     --checklist "Press [SPACE] to select/deselect." \
     23 $WIDTH_SM 16 \
     ${pairs[*]} \
@@ -519,7 +519,7 @@ form:file_picker_dialog() {
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --no-tags \
-    --title "$title" \
+    --title " $title " \
     --menu "$body" \
     23 $WIDTH_SM 16 \
     ${pairs[*]} \
@@ -571,7 +571,7 @@ form:text_input() {
 config:show_system_dialog() {
   message="\nYou can <Change> any of these settings. Move to the <Next> screen when you're done.\n "
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Locales" \
+    --title " Locales " \
     --no-cancel \
     --ok-label "Change" \
     --extra-button \
@@ -639,7 +639,7 @@ config:show_recipes_dialog() {
     --separate-output \
     --no-cancel \
     --ok-label "Next" \
-    --title "Extras" \
+    --title " Extras " \
     --checklist "\n$body\n " \
     15 $WIDTH_LG 8 \
     "yay" "Install yay, the AUR helper" \
@@ -655,7 +655,7 @@ config:show_recipes_dialog() {
 config:show_user_dialog() {
   message="\nTell me about the user you're going to use day-to-day.\n "
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Configure your user" \
+    --title " Configure your user " \
     --no-cancel \
     --no-shadow \
     --ok-label "Change" \
@@ -777,7 +777,7 @@ confirm:show_script_dialog() {
   # "$EDITOR" "$SCRIPT_FILE"
   # less "$SCRIPT_FILE"
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "$SCRIPT_FILE" \
+    --title " $SCRIPT_FILE " \
     --exit-label "Continue" \
     --textbox "$SCRIPT_FILE" $(( $LINES - 2 )) $WIDTH_LG
 }
@@ -792,7 +792,7 @@ confirm:show_confirm_dialog() {
   if [[ "$ENABLE_RECIPES" != 1 ]]; then recipe_opts=(); fi
   
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --title "Install now" \
+    --title " Install now " \
     --no-cancel \
     --menu "$message" \
     17 $WIDTH_SM 4 \
@@ -811,7 +811,7 @@ app:edit_script() {
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --keep-window \
-    --title "$SCRIPT_FILE" \
+    --title " $SCRIPT_FILE " \
     --exit-label "Continue" \
     --textbox "$SCRIPT_FILE" $(( $LINES - 2 )) $WIDTH_LG \
     --and-widget \
@@ -1143,10 +1143,13 @@ app:infer_defaults() {
   fi
 
   if [[ -f /etc/vconsole.conf ]]; then
-    keymap="$(grep 'KEYMAP=' /etc/vconsole.conf | cut -d'=' -f2)"
-    if [[ -n "$keymap" ]]; then
-      KEYBOARD_LAYOUT="$keymap"
-    fi
+    {
+      set +e
+      local keymap="$(grep 'KEYMAP=' /etc/vconsole.conf | cut -d'=' -f2)"
+      if [[ -n "$keymap" ]]; then
+        KEYBOARD_LAYOUT="$keymap"
+      fi
+    }
   fi
 }
 
