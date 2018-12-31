@@ -29,7 +29,7 @@ arch-installer
 5. In the `root@archiso ~ #` prompt, type:
 
 ```sh
-curl -s https://ricostacruz.com/arch-installer/install.sh | bash
+curl -sL https://git.io/fhLAB | bash
 ```
 
 [download]: https://www.archlinux.org/download/
