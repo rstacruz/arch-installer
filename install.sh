@@ -823,7 +823,10 @@ app:edit_script() {
     3>&1 1>&2 2>&3
   
   case "$?" in
-    0) "$EDITOR" "$SCRIPT_FILE" ;;
+    0)
+      "$EDITOR" "$SCRIPT_FILE"
+      reset # Vim can sometimes leave some ANSI garbage
+      ;;
   esac
 }
 
@@ -832,9 +835,7 @@ app:run_script() {
   # Only proceed if we're root.
   if [[ $(id -u) != "0" ]]; then quit:exit; return; fi
 
-  # Clear the screen, and make sure any ANSI garbage is cleaned up
-  clear
-  reset
+  # Clear the screen
   clear
 
   bash "$SCRIPT_FILE"
