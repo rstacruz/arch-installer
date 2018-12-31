@@ -247,6 +247,7 @@ config:disk() {
       config:pick_root_partition
       config:pick_efi_partition
 
+      validate_partition:show_warning
       validate_partition:efi
       validate_partition:root
       ;;
@@ -625,15 +626,37 @@ config:show_user_dialog() {
 
 # -------------------------------------------------------------------------------
 
+# Inform the user why they'll be asked for a sudo password.
+# (When ran from the arch installer, there's no need to sudo,
+# so there's no need for this warning either.)
+validate_partition:show_warning() {
+  clear
+  if ! util:is_root; then
+    echo ""
+    echo "We're now going to mount your partitions to see if they're formatted."
+    echo ""
+  fi
+}
+
 # See if the EFI partition is mountable.
 validate_partition:efi() {
+  validate_partition:check_if_mounted "$FS_EFI"
   if ! validate_partition:check "$FS_EFI"; then
     quit:format_efi_first "$FS_EFI"
   fi
 }
 
+validate_partition:check_if_mounted() {
+  local dev="$1"
+  local target=$(findmnt "$dev" -no 'TARGET')
+  if [[ -n "$target" ]]; then
+    quit:already_mounted "$dev" "$target"
+  fi
+}
+
 # See if the root partition is mountable.
 validate_partition:root() {
+  validate_partition:check_if_mounted "$FS_ROOT"
   if ! validate_partition:check "$FS_ROOT"; then
     quit:format_root_first "$FS_ROOT"
   fi
@@ -642,21 +665,17 @@ validate_partition:root() {
 # See if a partition is mountable.
 validate_partition:check() {
   local dev="$1"
-  clear
-  if ! util:is_root; then
-    echo "We're now going to mount '$dev' (read-only) to see if it's valid."
-  fi
   set +e
   local mountpoint="/tmp/mount"
-  mkdir -p "$mountpoint"
 
   # Mount it, save the result to check later
-  util:sudo 'mount -o ro "$FS_EFI" "$mountpoint"'
+  util:sudo "mkdir -p $mountpoint"
+  util:sudo "mount -o ro $dev $mountpoint"
   result="$?"
 
   # Force-unmount it
-  util:sudo 'umount "$mountpoint"' || true
-  rmdir "$mountpoint"
+  util:sudo "umount $mountpoint" || true
+  util:sudo "rmdir $mountpoint"
 
   if [[ "$result" != "0" ]]; then
     return 1
@@ -1132,9 +1151,22 @@ quit:cfdisk() {
 END
 }
 
+quit:already_mounted() {
+  local dev="$1"
+  local target="$2"
+  quit:exit_msg <<END
+  '$dev' seems to already be mounted to '$target'. The installer
+  needs to mount this, so you may need to unmount it first.
+END
+}
+
 quit:format_efi_first() {
   quit:exit_msg <<END
-  Format the EFI partition first.
+  Please format the EFI partition first.
+
+  The EFI partition ($1) seems like it's not mountable, and this
+  is usually because it needs to be formatted first. You can use
+  'mkfs' to format it:
 
       mkfs.fat -F32 "$1"
 
@@ -1144,7 +1176,11 @@ END
 
 quit:format_root_first() {
   quit:exit_msg <<END
-  Format the root partition first. It might be something like so:
+  Please format the root partition first.
+  
+  The root partition ($1) seems like it's not mountable, and this
+  is usually because it needs to be formatted first. You can use
+  'mkfs' to format it:
 
       mkfs.ext4 "$1"
 
