@@ -11,7 +11,7 @@ set_defaults() {
 
   SYSTEM_HOSTNAME="my-arch"
   PRIMARY_USERNAME="anon"
-  PRIMARY_PASSWORD="password1"
+  PRIMARY_PASSWORD="1234"
 
   FS_DISK="/dev/sda"
   FS_ROOT="$FS_DISK""2"
