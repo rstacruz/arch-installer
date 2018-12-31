@@ -190,6 +190,13 @@ check:ensure_valid_partitions() {
   fi
 }
 
+check:not_mounted() {
+  local disk="$1"
+  if findmnt -o SOURCE | grep "$disk" &>/dev/null; then
+    quit:disk_is_mounted "$disk"
+  fi
+}
+
 # -------------------------------------------------------------------------------
 
 config:system() {
@@ -231,6 +238,7 @@ config:disk() {
     Wipe*)
       choice="$(config:show_disk_dialog --wipe)"
       FS_DISK="$choice"
+      check:not_mounted "$FS_DISK"
       FS_DO_FDISK=1
       INSTALL_GRUB=1
       FS_FORMAT_EFI=1
@@ -1194,6 +1202,17 @@ quit:exit_msg() {
   exit 1
 }
 
+quit:disk_is_mounted() {
+  local disk="$1"
+  quit:exit_msg <<END
+  The disk '$disk' seems to be mounted.
+
+$(findmnt -o 'SOURCE,TARGET' | grep $disk | sed 's/^/      /g')
+
+  Unmount it and run the installer again.
+END
+}
+
 quit:mnt_not_mounted() {
   quit:exit_msg <<END
   Please mount partitions manually into /mnt.
@@ -1468,6 +1487,7 @@ utils:arch_logo() {
   "
 }
 
+# Escape text
 esc() {
   printf "%q" "$1"
 }
