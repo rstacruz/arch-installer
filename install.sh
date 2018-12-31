@@ -55,13 +55,14 @@ set_defaults() {
   WIDTH_MD=72
 
   # Skip flags
-  SKIP_WELCOME=0
-  SKIP_PARTITION_MOUNT_CHECK=0
-  SKIP_EXT4_CHECK=0
-  SKIP_VFAT_CHECK=0
-  SKIP_MNT_CHECK=0
   SKIP_ARCHISO_CHECK=0
+  SKIP_EXT4_CHECK=0
+  SKIP_MNT_CHECK=0
+  SKIP_MOUNTED_CHECK=0
+  SKIP_PARTITION_MOUNT_CHECK=0
   SKIP_SANITY_CHECKS=0
+  SKIP_VFAT_CHECK=0
+  SKIP_WELCOME=0
   ENABLE_RECIPES=1
 
   # Where to write the script
@@ -697,6 +698,7 @@ validate_partition:efi() {
 }
 
 validate_partition:check_if_mounted() {
+  if [[ "$SKIP_MOUNTED_CHECK" != 0 ]]; then return; fi
   local dev="$1"
   local target=$(findmnt "$dev" -no 'TARGET')
   if [[ -n "$target" ]]; then
@@ -1159,19 +1161,21 @@ app:parse_options() {
     --vip)
       # Go through the VIP entrance and skip some checkpoints.
       # Use this only for testing purposes!
-      SKIP_VFAT_CHECK=1
-      SKIP_EXT4_CHECK=1
       SKIP_ARCHISO_CHECK=1
+      SKIP_EXT4_CHECK=1
       SKIP_MNT_CHECK=1
+      SKIP_MOUNTED_CHECK=1
       SKIP_SANITY_CHECKS=1
+      SKIP_VFAT_CHECK=1
       ;;
-    --skip-mnt-check) SKIP_MNT_CHECK=1 ;;
-    --skip-sanity-check) SKIP_SANITY_CHECKS=1 ;;
     --skip-archiso-check) SKIP_ARCHISO_CHECK=1 ;;
-    --skip-welcome) SKIP_WELCOME=1 ;;
-    --skip-vfat-check) SKIP_VFAT_CHECK=1 ;;
-    --skip-partition-mount-check) SKIP_PARTITION_MOUNT_CHECK=1 ;;
     --skip-ext4-check) SKIP_EXT4_CHECK=1 ;;
+    --skip-mnt-check) SKIP_MNT_CHECK=1 ;;
+    --skip-mounted-check) SKIP_MOUNTED_CHECK=1 ;;
+    --skip-partition-mount-check) SKIP_PARTITION_MOUNT_CHECK=1 ;;
+    --skip-sanity-check) SKIP_SANITY_CHECKS=1 ;;
+    --skip-vfat-check) SKIP_VFAT_CHECK=1 ;;
+    --skip-welcome) SKIP_WELCOME=1 ;;
     # -V | --version )
     #   echo version
     #   exit
@@ -1216,6 +1220,9 @@ quit:disk_is_mounted() {
 $(findmnt -o 'SOURCE,TARGET' | grep $disk | sed 's/^/      /g')
 
   Unmount it and run the installer again.
+
+  (You can skip this check with '--skip-mounted-check', but this
+  isn't recommended.)
 END
 }
 
