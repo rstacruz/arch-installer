@@ -39,7 +39,11 @@ set_defaults() {
   )
 
   INSTALL_GRUB=0
-  INSTALL_YAY=1 # TODO add a way to turn this off
+
+  # Recipes
+  INSTALL_YAY=0
+  INSTALL_SYSTEMD_SWAP=0
+  INSTALL_NETWORK_MANAGER=0
 
   # This variable isn't always available
   LINES="$(tput lines)"
@@ -58,7 +62,7 @@ set_defaults() {
   SKIP_MNT_CHECK=0
   SKIP_ARCHISO_CHECK=0
   SKIP_SANITY_CHECKS=0
-  ENABLE_RECIPES=0
+  ENABLE_RECIPES=1
 
   # Where to write the script
   SCRIPT_FILE="$HOME/arch_installer.sh"
@@ -595,20 +599,35 @@ config:user() {
 
 # Let the user pick recipes they want
 config:recipes() {
-  config:show_recipes_dialog
+  result="$(config:show_recipes_dialog)"
+  INSTALL_YAY=0
+  INSTALL_NETWORK_MANAGER=0
+  INSTALL_SYSTEMD_SWAP=0
+  for item in $result; do
+    case "$item" in
+      yay) INSTALL_YAY=1 ;;
+      networkmanager) INSTALL_NETWORK_MANAGER=1 ;;
+      systemd-swap) INSTALL_SYSTEMD_SWAP=1 ;;
+    esac
+  done
 }
 
 config:show_recipes_dialog() {
+  body="Pick some other extras to install.\n"
+  body+="Press [space] to select or deselect items."
   $DIALOG "${DIALOG_OPTS[@]}" \
     --separate-output \
     --no-cancel \
     --ok-label "Next" \
     --title "Extras" \
-    --checklist "Pick some other extras to install\nPress (Space) to select/deselect." \
+    --checklist "\n$body\n " \
     15 $WIDTH_LG 8 \
-    "base-devel" "Install base-devel" off \
-    "yay" "Install yay, the AUR helper" off \
-    "networkmanager" "Install NetworkManager" off \
+    "yay" "Install yay, the AUR helper" \
+    $([[ $INSTALL_YAY == "1" ]] && echo on || echo off) \
+    "networkmanager" "Install NetworkManager" \
+    $([[ $INSTALL_NETWORK_MANAGER == "1" ]] && echo on || echo off) \
+    "systemd-swap" "Manage swap files with systemd-swap" \
+    $([[ $INSTALL_SYSTEMD_SWAP == "1" ]] && echo on || echo off) \
     3>&1 1>&2 2>&3
 }
 
@@ -916,6 +935,12 @@ script:write_recipes() {
     if [[ "$INSTALL_YAY" == "1" ]]; then
       recipes:install_yay
     fi
+    if [[ "$INSTALL_NETWORK_MANAGER" == "1" ]]; then
+      recipes:install_network_manager
+    fi
+    if [[ "$INSTALL_SYSTEMD_SWAP" == "1" ]]; then
+      recipes:install_systemd_swap
+    fi
   ) >> "$SCRIPT_FILE"
 }
 
@@ -996,6 +1021,25 @@ recipes:install_yay() {
   echo "END"
 }
 
+recipes:install_network_manager() {
+  echo ''
+  echo ":: 'Setting up network manager'"
+  echo "arch-chroot /mnt bash <<END"
+  echo "  pacman -Syu --noconfirm --needed networkmanager"
+  echo "  systemctl enable NetworkManager"
+  echo "END"
+}
+
+recipes:install_systemd_swap() {
+  echo ''
+  echo ":: 'Setting up systemd-swap'"
+  echo "arch-chroot /mnt bash <<END"
+  echo "  pacman -Syu --noconfirm --needed systemd-swap"
+  echo "  sed -i 's/swapfc_enabled=0/swapfc_enabled=1/' /etc/systemd/swap.conf"
+  echo "  systemctl enable systemd-swap"
+  echo "END"
+}
+
 # -------------------------------------------------------------------------------
 
 # Parse options
@@ -1017,8 +1061,6 @@ app:parse_options() {
     --skip-vfat-check) SKIP_VFAT_CHECK=1 ;;
     --skip-partition-mount-check) SKIP_PARTITION_MOUNT_CHECK=1 ;;
     --skip-ext4-check) SKIP_EXT4_CHECK=1 ;;
-    # Developer options
-    --dev) ENABLE_RECIPES=1 ;;
     # -V | --version )
     #   echo version
     #   exit
