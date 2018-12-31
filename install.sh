@@ -1212,6 +1212,8 @@ quit:already_mounted() {
   quit:exit_msg <<END
   '$dev' seems to already be mounted to '$target'. The installer
   needs to mount this, so you may need to unmount it first.
+
+      umount $dev
 END
 }
 
