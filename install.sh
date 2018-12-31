@@ -7,7 +7,7 @@ set_defaults() {
   # Defaults
   KEYBOARD_LAYOUT=${KEYBOARD_LAYOUT:-us}
   PRIMARY_LOCALE="en_US.UTF-8 UTF-8"
-  TIMEZONE=${TIMEZONE:-Etc/GMT}
+  TIMEZONE="${TIMEZONE}"
 
   SYSTEM_HOSTNAME="my-arch"
   PRIMARY_USERNAME="anon"
@@ -89,6 +89,7 @@ set_constants() {
 
 # Start everything
 main() {
+  app:infer_defaults
   app:parse_options "$@"
 
   if [[ "$SKIP_SANITY_CHECKS" != 1 ]]; then
@@ -828,7 +829,7 @@ script:write_start() {
 
 script:write_fdisk() {
   (
-    echo ":: 'Wiping disk $FS_DISK'"
+    echo ":: 'Wiping disk ($FS_DISK)'"
     echo "("
     echo "  echo g      # Clear everything and start as GPT"
     echo "  echo w      # Write and save"
@@ -1041,6 +1042,24 @@ recipes:install_systemd_swap() {
 }
 
 # -------------------------------------------------------------------------------
+
+# Infer some default values
+app:infer_defaults() {
+  if [[ -z "$TIMEZONE" ]]; then
+    TIMEZONE=$(timedatectl | grep 'Time zone' | awk '{ print $3 }')
+  fi
+
+  if [[ "$(whoami)" != "root" ]]; then
+    PRIMARY_USERNAME="$(whoami)"
+  fi
+
+  if [[ -f /etc/vconsole.conf ]]; then
+    keymap="$(grep 'KEYMAP=' /etc/vconsole.conf | cut -d'=' -f2)"
+    if [[ -n "$keymap" ]]; then
+      KEYBOARD_LAYOUT="$keymap"
+    fi
+  fi
+}
 
 # Parse options
 app:parse_options() {
