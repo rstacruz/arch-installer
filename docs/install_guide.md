@@ -1,6 +1,6 @@
 ## Installing Arch Linux
 
-Boot into the Arch Linux Live environment, and get it online. In the `root@archiso ~ #` prompt, type:
+Boot into the Arch Linux Live environment, and get it online. In the `root@archiso ~ #` prompt, type: _([view source](https://git.io/fhLAB))_
 
 ```sh
 curl -sL https://git.io/fhLAB | bash
