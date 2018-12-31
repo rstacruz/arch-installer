@@ -50,7 +50,7 @@ set_defaults() {
   COLUMNS="$(tput cols)"
 
   # Dimensions
-  WIDTH_LG=$COLUMNS
+  WIDTH_LG=$(( $COLUMNS - 4 ))
   WIDTH_SM=60
   WIDTH_MD=72
 
@@ -659,7 +659,8 @@ validate_partition:show_warning() {
   clear
   if ! util:is_root; then
     echo ""
-    echo "We're now going to mount your partitions to see if they're formatted."
+    echo "Your partitions will be mounted now in read-only mode to check"
+    echo "if they're already formatted."
     echo ""
   fi
 }
@@ -746,7 +747,7 @@ over a few things:
 confirm:run() {
   choice="$(confirm:show_confirm_dialog)"
   case "$choice" in
-    Install*) app:run_script ;;
+    Install*) app:edit_script; app:run_script ;;
     Review*) confirm:show_script_dialog; confirm:run ;;
     Additional*) config:recipes; script:write; confirm:run ;;
     *) quit:exit ;;
@@ -754,14 +755,18 @@ confirm:run() {
 }
 
 confirm:show_script_dialog() {
-  "$EDITOR" "$SCRIPT_FILE"
+  # "$EDITOR" "$SCRIPT_FILE"
+  # less "$SCRIPT_FILE"
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title "$SCRIPT_FILE" \
+    --exit-label "Continue" \
+    --textbox "$SCRIPT_FILE" $(( $LINES - 2 )) $WIDTH_LG
 }
 
 confirm:show_confirm_dialog() {
   local message="\n"
-  message+="We're ready to install!\n"
-  message+="You can now (I)nstall a minimal Arch Linux system. "
-  message+="We recommend (R)eviewing the install script before proceeding.\n"
+  message+="Ready to install!\n"
+  message+="An install script's been prepared for you. You can run it now by selecting [Install now].\n"
   message+=" "
 
   local recipe_opts=("Additional options" "")
@@ -780,6 +785,28 @@ confirm:show_confirm_dialog() {
 }
 
 # -------------------------------------------------------------------------------
+
+app:edit_script() {
+  set +e
+  body="Edit this install script before installing?"
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --keep-window \
+    --title "$SCRIPT_FILE" \
+    --exit-label "Continue" \
+    --textbox "$SCRIPT_FILE" $(( $LINES - 2 )) $WIDTH_LG \
+    --and-widget \
+    --title "" \
+    --yes-label "Edit and Install" \
+    --no-label "Just Install Now" \
+    --yesno "\n$body\n " \
+    7 $WIDTH_SM \
+    3>&1 1>&2 2>&3
+  
+  case "$?" in
+    0) "$EDITOR" "$SCRIPT_FILE" ;;
+  esac
+}
 
 # Run the script
 app:run_script() {
@@ -806,6 +833,7 @@ script:write() {
 
   script:write_pacstrap
   script:write_recipes
+  script:write_hints
   script:write_end
 }
 
@@ -943,6 +971,36 @@ script:write_recipes() {
       recipes:install_systemd_swap
     fi
   ) >> "$SCRIPT_FILE"
+}
+
+script:write_hints() {
+  echo '' >> "$SCRIPT_FILE"
+  cat >> "$SCRIPT_FILE" <<EOF
+# By now installation is done! Here are a few more things you can try.
+# You can uncomment them below, or do them after the installation.
+arch-chroot /mnt sh <<END
+  ### Intel video driver, needed for some laptops
+  # pacman -S --noconfirm xf86-video-intel
+
+  ### NVidia video driver
+  # pacman -S --noconfirm xf86-video-nouveau
+
+  ### Lightdm greeter (login screen)
+  # pacman -S --noconfirm xorg-server lightdm lightdm-gtk-greeter
+  # systemctl enable lightdm
+
+  ### Install a desktop environment (pick one or more)
+  ### (for GNOME, don't install lightdm; gdm better integrates with it.)
+  # pacman -S --noconfirm xfce4
+  # pacman -S --noconfirm gnome gdm; systemctl enable gdm
+  # pacman -S --noconfirm plasma
+  # pacman -S --noconfirm i3-gaps rxvt-unicode
+
+  ### Install a browser
+  # pacman -S --noconfirm chromium
+  # pacman -S --noconfirm firefox
+END
+EOF
 }
 
 script:write_end() {
