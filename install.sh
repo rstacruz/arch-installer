@@ -1338,19 +1338,19 @@ END
 
 # Show 'no ext4 partition' error message and exit
 quit:no_ext4() {
-  clear
-  echo "You don't seem to have an 'ext4' partition in '$disk' yet."
-  echo "You may need to partition your disk before continuing."
-  echo ""
-  lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/    /g'
-  echo ""
-  echo "Linux is usually installed into an ext4 partition. See the"
-  echo "Arch wiki for details:"
-  echo ""
-  echo "    https://wiki.archlinux.org/index.php/Installation_guide#Partition_the_disks"
-  echo ""
-  echo "(You can skip this check with '--skip-ext4-check'.)"
-  exit 1
+  quit:exit_msg <<END
+  You don't seem to have an 'ext4' partition in '$disk' yet.
+  You may need to partition your disk before continuing.
+
+$(lsblk -o "NAME,FSTYPE,LABEL,SIZE" "$disk" | sed 's/^/      /g')
+
+  Linux is usually installed into an ext4 partition. See the
+  Arch wiki for details:
+
+      https://wiki.archlinux.org/index.php/Installation_guide#Partition_the_disks
+
+  (You can skip this check with '--skip-ext4-check'.)
+END
 }
 
 # Show 'no vfat partition' error message and exit
