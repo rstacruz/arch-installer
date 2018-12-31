@@ -1,5 +1,7 @@
 # Connecting via wifi
 
+<a href='./images/wifi-menu.gif'><img width='420' src='./images/wifi-menu.gif'></a>
+
 ```bash
 # Find interface names:
 iw dev

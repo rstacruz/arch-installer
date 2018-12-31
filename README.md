@@ -18,26 +18,17 @@ arch-installer
 
 ## Usage instructions
 
-1. [Download the Arch Linux live environment ISO][download]. This installer is meant to run inside the Arch Linux live enviroment.
-
-2. [Put it into a USB drive][usb]. (Skip this if you're installing into a VM.)
-
-3. Boot into the Arch Linux Live environment.
-
-4. Get online. You can do this via [ethernet](docs/connect_via_ethernet.md), [wifi](docs/connect_via_wifi.md), or an [Android phone](docs/connect_via_android.md).
-
-5. In the `root@archiso ~ #` prompt, type:
+Boot into the Arch Linux Live environment, and get it online. In the `root@archiso ~ #` prompt, type:
 
 ```sh
 curl -sL https://git.io/fhLAB | bash
 ```
 
-[download]: https://www.archlinux.org/download/
-[usb]: https://wiki.archlinux.org/index.php/USB_flash_installation_media
+A more detailed guide is available here: [**Installation guide**](./docs/install_guide.md)
 
 ## Limitations
 
-The installer is best suited for modern desktops. Only GPT disks and UEFI boot are supported. (legacy MBR setups aren't)
+The installer is best suited for modern desktops. Only GPT disks and UEFI boot are fully-supported. (Legacy MBR setups are okay, too, but you'll have to partition/format/mount it manually.)
 
 ## Is it safe?
 
@@ -45,7 +36,7 @@ Yes.
 
 - It won't modify anything until the very last step. Feel free to explore it (even on your live system).
 
-- It won't actually partition disks for you. If you choose to 'partition now', it will simply print instructions on how to use `cfdisk` to do it yourself.
+- It won't actually partition disks for you (unless you choose `Full wipe`). If you choose to 'partition now', it will simply print instructions on how to use `cfdisk` to do it yourself.
 
 - It tries to exit when it finds that something may not be in order. It even displays helpful troubleshooting messages whenever possible.
 
