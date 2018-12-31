@@ -25,6 +25,7 @@ set_defaults() {
 
   # Format the ESP partition?
   FS_FORMAT_EFI=0
+  FS_FORMAT_ROOT=0
 
   INSTALLER_TITLE="Arch Linux Installer"
   ARCH_MIRROR=""
@@ -51,6 +52,7 @@ set_defaults() {
 
   # Skip flags
   SKIP_WELCOME=0
+  SKIP_PARTITION_MOUNT_CHECK=0
   SKIP_EXT4_CHECK=0
   SKIP_VFAT_CHECK=0
   SKIP_MNT_CHECK=0
@@ -226,6 +228,7 @@ config:disk() {
       FS_DO_FDISK=1
       INSTALL_GRUB=1
       FS_FORMAT_EFI=1
+      FS_FORMAT_ROOT=1
       ;;
 
     Use\ /mnt*)
@@ -236,7 +239,7 @@ config:disk() {
       FS_EFI=""
       ;;
 
-    Format*)
+    Choose*)
       choice="$(config:show_disk_dialog --format)"
       FS_DISK="$choice"
 
@@ -247,9 +250,12 @@ config:disk() {
       config:pick_root_partition
       config:pick_efi_partition
 
-      validate_partition:show_warning
-      validate_partition:efi
-      validate_partition:root
+      # Check them if they can be mounted
+      if [[ "$SKIP_PARTITION_MOUNT_CHECK" == "0" ]]; then
+        validate_partition:show_warning
+        validate_partition:efi
+        validate_partition:root
+      fi
       ;;
   esac
 }
@@ -289,7 +295,7 @@ config:show_partition_strategy_dialog() {
     --menu "\n$title\n " \
     14 $WIDTH_MD 4 \
     "Wipe drive" "Wipe my drive completely." \
-    "Format partitions" "I've already partitioned my disks." \
+    "Choose partitions" "I've already partitioned my disks." \
     "Partition manually" "Let me partition my disk now." \
     "Use /mnt" "(Advanced) Use whatever is mounted on /mnt." \
     3>&1 1>&2 2>&3
@@ -640,6 +646,10 @@ validate_partition:show_warning() {
 
 # See if the EFI partition is mountable.
 validate_partition:efi() {
+  # If there's no EFI to be checked (eg, skip bootloader)
+  # then don't check
+  if [[ -z "$FS_EFI" ]]; then return; fi
+
   validate_partition:check_if_mounted "$FS_EFI"
   if ! validate_partition:check "$FS_EFI"; then
     quit:format_efi_first "$FS_EFI"
@@ -831,19 +841,21 @@ script:write_pacstrap() {
     echo ":: 'Enabling clock syncing via ntp'"
     echo "timedatectl set-ntp true"
     echo ''
-    if [[ "$FS_FORMAT_EFI" == "1" ]]; then
-      echo ":: 'Formating ESP partition ($FS_EFI)'"
-      echo "mkfs.fat -F32 $FS_EFI"
-      echo ''
-    fi
     if [[ "$FS_USE_MNT" == "1" ]]; then
       echo ":: 'Using /mnt'"
       echo '# (Not mounting any drives, assuming /mnt is already available.)'
       echo ''
     else
-      echo ":: 'Formating primary partition ($FS_ROOT)'"
-      echo "mkfs.ext4 $(esc "$FS_ROOT")"
-      echo ''
+      if [[ "$FS_FORMAT_EFI" == "1" ]]; then
+        echo ":: 'Formating ESP partition ($FS_EFI)'"
+        echo "mkfs.fat -F32 $FS_EFI"
+        echo ''
+      fi
+      if [[ "$FS_FORMAT_ROOT" == "1" ]]; then
+        echo ":: 'Formating primary partition ($FS_ROOT)'"
+        echo "mkfs.ext4 $(esc "$FS_ROOT")"
+        echo ''
+      fi
       echo ":: 'Mounting partitions'"
       echo "mount $FS_ROOT /mnt"
       if [[ "$FS_EFI" != "$NO_BOOTLOADER" ]]; then
@@ -1003,6 +1015,7 @@ app:parse_options() {
     --skip-archiso-check) SKIP_ARCHISO_CHECK=1 ;;
     --skip-welcome) SKIP_WELCOME=1 ;;
     --skip-vfat-check) SKIP_VFAT_CHECK=1 ;;
+    --skip-partition-mount-check) SKIP_PARTITION_MOUNT_CHECK=1 ;;
     --skip-ext4-check) SKIP_EXT4_CHECK=1 ;;
     # Developer options
     --dev) ENABLE_RECIPES=1 ;;
