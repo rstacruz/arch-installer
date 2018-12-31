@@ -15,6 +15,12 @@ dhcpcd enp0s26f7u3u3
 #      actual interface name
 ```
 
+## Check if you're online
+
+Run `ping 8.8.8.8` to check if you're finally online.
+
+<img width='320' src='./images/online-ping.gif'>
+
 ## References
 
 - [Android tethering](https://wiki.archlinux.org/index.php/Android_tethering) _(wiki.archlinux.org)_

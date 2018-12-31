@@ -16,6 +16,12 @@ wifi-menu -o wlp2s0
 #            actual interface name
 ```
 
+## Check if you're online
+
+Run `ping 8.8.8.8` to check if you're finally online.
+
+<img width='320' src='./images/online-ping.gif'>
+
 ## References
 
 - <https://bbs.archlinux.org/viewtopic.php?id=213577>
