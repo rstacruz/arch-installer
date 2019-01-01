@@ -192,6 +192,7 @@ check:ensure_valid_partitions() {
 }
 
 check:not_mounted() {
+  if [[ "$SKIP_MOUNTED_CHECK" != 0 ]]; then return; fi
   local disk="$1"
   if findmnt -o SOURCE | grep "$disk" &>/dev/null; then
     quit:disk_is_mounted "$disk"
