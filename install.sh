@@ -9,7 +9,7 @@ set_defaults() {
   PRIMARY_LOCALE="en_US.UTF-8 UTF-8"
   TIMEZONE="${TIMEZONE}"
 
-  SYSTEM_HOSTNAME="my-arch"
+  SYSTEM_HOSTNAME="arch-pc"
   PRIMARY_USERNAME="anon"
   PRIMARY_PASSWORD="1234"
 
