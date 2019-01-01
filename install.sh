@@ -60,7 +60,7 @@ set_defaults() {
   SKIP_MNT_CHECK=0
   SKIP_MOUNTED_CHECK=0
   SKIP_PARTITION_MOUNT_CHECK=0
-  SKIP_SANITY_CHECKS=0
+  SKIP_SANITY_CHECK=0
   SKIP_VFAT_CHECK=0
   SKIP_WELCOME=0
   ENABLE_RECIPES=1
@@ -94,7 +94,7 @@ main() {
   app:infer_defaults
   app:parse_options "$@"
 
-  if [[ "$SKIP_SANITY_CHECKS" != 1 ]]; then
+  if [[ "$SKIP_SANITY_CHECK" != 1 ]]; then
     check:ensure_pacman
     check:ensure_available_utils
     check:ensure_efi
@@ -1165,7 +1165,8 @@ app:parse_options() {
       SKIP_EXT4_CHECK=1
       SKIP_MNT_CHECK=1
       SKIP_MOUNTED_CHECK=1
-      SKIP_SANITY_CHECKS=1
+      SKIP_SANITY_CHECK=1
+      SKIP_PARTITION_MOUNT_CHECK=1
       SKIP_VFAT_CHECK=1
       ;;
     --skip-archiso-check) SKIP_ARCHISO_CHECK=1 ;;
@@ -1173,7 +1174,7 @@ app:parse_options() {
     --skip-mnt-check) SKIP_MNT_CHECK=1 ;;
     --skip-mounted-check) SKIP_MOUNTED_CHECK=1 ;;
     --skip-partition-mount-check) SKIP_PARTITION_MOUNT_CHECK=1 ;;
-    --skip-sanity-check) SKIP_SANITY_CHECKS=1 ;;
+    --skip-sanity-check) SKIP_SANITY_CHECK=1 ;;
     --skip-vfat-check) SKIP_VFAT_CHECK=1 ;;
     --skip-welcome) SKIP_WELCOME=1 ;;
     # -V | --version )
