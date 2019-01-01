@@ -303,6 +303,8 @@ config:pick_efi_partition() {
     "$body\n$subtext")"
   if [[ "$choice" == "$NO_BOOTLOADER" ]]; then
     FS_EFI=""
+  elif [[ "$choice" == "$ADD_NEW_TAG" ]]; then
+    quit:cfdisk "$FS_EFI"
   else
     INSTALL_GRUB=1
     FS_EFI="$choice"
