@@ -1362,29 +1362,41 @@ END
 
 quit:format_efi_first() {
   quit:exit_msg <<END
-  Please format the EFI partition first.
+  The EFI partition ($1) can't be mounted. You can try one of
+  these things:
 
-  The EFI partition ($1) seems like it's not mountable, and this
+  - If it's mounted right now, unmount it and try again.
+  - Format the partition first.
+
+  The EFI partition seems like it's not mountable, and this
   is usually because it needs to be formatted first. You can use
   'mkfs' to format it:
 
-      mkfs.fat -F32 "$1"
+      mkfs.fat -F32 $1
 
   Run the installer again afterwards.
+
+  (You can skip this check with '--skip-partition-mount-check'.)
 END
 }
 
 quit:format_root_first() {
   quit:exit_msg <<END
-  Please format the root partition first.
-  
-  The root partition ($1) seems like it's not mountable, and this
+  The root partition ($1) can't be mounted. You can try one of
+  these things:
+
+  - If it's mounted right now, unmount it and try again.
+  - Format the partition first.
+
+  The root partition seems like it's not mountable, and this
   is usually because it needs to be formatted first. You can use
   'mkfs' to format it:
 
-      mkfs.ext4 "$1"
+      mkfs.ext4 $1
 
   Run the installer again afterwards.
+
+  (You can skip this check with '--skip-partition-mount-check'.)
 END
 }
 
