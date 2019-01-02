@@ -487,14 +487,10 @@ disk:confirm_strategy() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --colors \
     --title " Review " \
-    --yes-label "Next" \
-    --no-label "Exit" \
-    --yesno "$message" \
+    --ok-label "Next" \
+    --msgbox "$message" \
     22 $WIDTH_MD \
     3>&1 1>&2 2>&3
-
-  # Exit if 'Next' isn't chosen
-  if [[ "$?" != 0 ]]; then quit:no_message; fi
 }
 
 # -------------------------------------------------------------------------------
@@ -1547,14 +1543,10 @@ disk:show_mnt_warning() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --colors \
     --title " Review " \
-    --yes-label "Next" \
-    --no-label "Exit" \
-    --yesno "$message" \
-    24 $WIDTH_MD \
+    --ok-label "Next" \
+    --msgbox "$message" \
+    20 $WIDTH_MD \
     3>&1 1>&2 2>&3
-
-  # Exit if 'Next' isn't chosen
-  if [[ "$?" != 0 ]]; then quit:no_message; fi
 }
 
 # -------------------------------------------------------------------------------
