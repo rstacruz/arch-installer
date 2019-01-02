@@ -474,15 +474,14 @@ disk:confirm_strategy() {
   message+="\n"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
   message+="\nPress \ZbNext\Zn and we'll continue configuring your installation. None of these operations will be done until the final step."
-  message+="\n "
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --colors \
     --title " Review " \
     --yes-label "Next" \
     --no-label "Exit" \
-    --yesno "$message\n " \
-    24 $WIDTH_MD \
+    --yesno "$message" \
+    22 $WIDTH_MD \
     3>&1 1>&2 2>&3
 
   # Exit if 'Next' isn't chosen
@@ -1533,14 +1532,13 @@ disk:show_mnt_warning() {
   message+="\n"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
   message+="\nPress \ZbNext\Zn and we'll continue configuring your installation."
-  message+="\n "
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --colors \
     --title " Review " \
     --yes-label "Next" \
     --no-label "Exit" \
-    --yesno "$message\n " \
+    --yesno "$message" \
     24 $WIDTH_MD \
     3>&1 1>&2 2>&3
 
