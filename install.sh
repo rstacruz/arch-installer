@@ -450,7 +450,7 @@ disk:confirm_strategy() {
     message+="This partition will be reformatted, and a new boot loader be put in its place."
   else
     message+="\n\n\Zb\Z2Add boot loader to $FS_EFI\Zn\n"
-    message+="A new EFI boot loader will be added to \Zb$FS_EFI\Zn."
+    message+="A new EFI boot loader will be added to \Zb$FS_EFI\Zn. Any existing boot loaders will be left untouched."
   fi
 
   if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
