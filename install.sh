@@ -442,7 +442,7 @@ disk:confirm_strategy() {
   set +e
   message=""
   message+="These operations will be done to your disk:"
-  message+="\n────────────────────────────────────────────────────────────────────"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
 
   if [[ "$FS_DO_FDISK" == 1 ]]; then
     message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
@@ -471,7 +471,8 @@ disk:confirm_strategy() {
   fi
 
   # TODO: Warn if certain partition types are not supported
-  message+="\n\n────────────────────────────────────────────────────────────────────"
+  message+="\n"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
   message+="\nPress \ZbNext\Zn and we'll continue configuring your installation. None of these operations will be done until the final step."
   message+="\n "
 
@@ -480,7 +481,7 @@ disk:confirm_strategy() {
     --title " Review " \
     --yes-label "Next" \
     --no-label "Exit" \
-    --yesno "\n$message\n " \
+    --yesno "$message\n " \
     24 $WIDTH_MD \
     3>&1 1>&2 2>&3
 
@@ -1518,7 +1519,7 @@ disk:show_mnt_warning() {
   set +e
   message=""
   message+="Please review the installation strategy:"
-  message+="\n────────────────────────────────────────────────────────────────────"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
 
   message+="\n\n\Zb\Z2No disk operations\Zn\n"
   message+="No partition tables will be edited. No partitions will be (re)formatted."
@@ -1529,7 +1530,8 @@ disk:show_mnt_warning() {
   message+="\n\n\Zb\Z2Install Arch Linux into /mnt\Zn\n"
   message+="Arch Linux will be installed into whatever disk is mounted in \Zb/mnt\Zn at the moment."
 
-  message+="\n\n────────────────────────────────────────────────────────────────────"
+  message+="\n"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
   message+="\nPress \ZbNext\Zn and we'll continue configuring your installation."
   message+="\n "
 
@@ -1538,7 +1540,7 @@ disk:show_mnt_warning() {
     --title " Review " \
     --yes-label "Next" \
     --no-label "Exit" \
-    --yesno "\n$message\n " \
+    --yesno "$message\n " \
     24 $WIDTH_MD \
     3>&1 1>&2 2>&3
 
