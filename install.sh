@@ -29,7 +29,6 @@ set_defaults() {
   FS_FORMAT_ROOT=0
 
   INSTALLER_TITLE="Arch Linux Installer"
-  ARCH_MIRROR=""
 
   # Dialog implementation to use.
   DIALOG=${DIALOG:-dialog}
@@ -51,7 +50,7 @@ set_defaults() {
   COLUMNS="$(tput cols)"
 
   # Dimensions
-  WIDTH_LG=$(( $COLUMNS - 4 ))
+  WIDTH_LG=$(( COLUMNS - 4 ))
   WIDTH_SM=60
   WIDTH_MD=72
 
@@ -170,7 +169,7 @@ check:ensure_available_utils() {
 check:ensure_util() {
   local pkg="$1"
   local exec="$2"
-  if ! which "$exec" &>/dev/null; then
+  if ! command -v "$exec" &>/dev/null; then
     quit:missing_util "$exec" "$pkg"
   fi
 }
@@ -275,10 +274,10 @@ config:pick_efi_partition() {
 config:show_disk_dialog() {
   pairs=()
   IFS=$'\n'
-  while read line; do
+  while read -r line; do
     eval "$line"
     pairs+=("/dev/$NAME" "$SIZE")
-  done <<< $(util:list_drives)
+  done <<< "$(util:list_drives)"
 
   local warning=
   local title="Which disk do you want to install Arch Linux into?"
@@ -289,6 +288,7 @@ config:show_disk_dialog() {
     warning="(Pick partitions from this drive in the next screen.)"
   fi
 
+  # shellcheck disable=SC2086
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title " Disks " \
     --no-cancel \
@@ -321,12 +321,16 @@ config:show_partition_dialog() {
 
   # Add partition to `$pairs`
   IFS=$'\n'
-  while read line; do
+  while read -r line; do
+    local FSTYPE
+    local SIZE
+    local LABEL
     eval "$line"
     label="$(printf "[%8s]  %s - %s" "$SIZE" "$FSTYPE" "${LABEL:-No label}")"
     pairs+=("/dev/$NAME" "$label")
-  done <<< $(util:list_partitions "$disk")
+  done <<< "$(util:list_partitions "$disk")"
 
+  # shellcheck disable=SC2086
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title " $title " \
     --no-cancel \
@@ -347,8 +351,8 @@ config:choose_timezone() {
     "Time zone" \
     "Choose your region:"
   )"
-  if [[ -z "$choice" ]]; then echo $active; return; fi
-  echo $choice
+  if [[ -z "$choice" ]]; then echo "$active"; return; fi
+  echo "$choice"
 }
 
 # Returns (echoes) a keyboard layout.
@@ -492,6 +496,7 @@ disk:confirm_strategy() {
     23 $WIDTH_MD \
     3>&1 1>&2 2>&3
 
+  # shellcheck disable=SC2181
   if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
@@ -503,10 +508,11 @@ form:select() {
   active="$2"
   pairs=()
   IFS=$'\n'
-  while read line; do
+  while read -r line; do
     pairs+=("$line" "$line")
   done
 
+  # shellcheck disable=SC2086
   $DIALOG "${DIALOG_OPTS[@]}" \
     --no-tags \
     --title " $title " \
@@ -523,12 +529,17 @@ form:multi_select() {
   active="$2"
   pairs=()
   IFS=$'\n'
-  while read line; do
+  while read -r line; do
     status=off
+    # shellcheck disable=SC2199
+    # The left-hand side is intentionally using @
+    # shellcheck disable=SC2076
+    # The pattern is intentionally double-quoted since we want to match it literally
     if [[ "${active[@]}" =~ "${line}" ]]; then status=on; fi
-    pairs+=("$line" "$line" $status)
+    pairs+=("$line" "$line" "$status")
   done
 
+  # shellcheck disable=SC2086
   $DIALOG "${DIALOG_OPTS[@]}" \
     --no-tags \
     --separate-output \
@@ -550,6 +561,7 @@ form:file_picker() {
 
   while true; do
     choice="$(form:file_picker_dialog "$root" "$title" "$body" "$depth")"
+    # shellcheck disable=SC2181
     if [[ $? != 0 ]]; then
       return 1
     fi
@@ -559,7 +571,7 @@ form:file_picker() {
     else
       root="$root/$choice"
     fi
-    depth="$(( $depth + 1 ))"
+    depth="$(( depth + 1 ))"
   done
   echo "$result"
 }
@@ -587,6 +599,7 @@ form:file_picker_dialog() {
     pairs+=("$entry" "$entry")
   done
 
+  # shellcheck disable=SC2086
   $DIALOG "${DIALOG_OPTS[@]}" \
     --no-tags \
     --title " $title " \
@@ -605,7 +618,7 @@ util:list_keymaps() {
 
 # List available locales
 util:list_locales() {
-  cat /etc/locale.gen | grep -e '^#[a-zA-Z]' | sed 's/^#//g' | sed 's/ *$//g'
+  grep -e '^#[a-zA-Z]' /etc/locale.gen | sed 's/^#//g' | sed 's/ *$//g'
 }
 
 # Check if a disk has a given partition of given type
@@ -615,7 +628,7 @@ util:disk_has_partition() {
   fstype="$2"
   lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
     | grep 'TYPE="part"' \
-    | grep "$(basename $disk)" \
+    | grep "$(basename "$disk")" \
     | grep "FSTYPE=\"$fstype\"" \
     &>/dev/null
 }
@@ -713,11 +726,11 @@ config:show_recipes_dialog() {
     --checklist "\n$body\n " \
     15 $WIDTH_LG 8 \
     "yay" "Install yay, the AUR helper" \
-    $([[ $INSTALL_YAY == "1" ]] && echo on || echo off) \
+    "$([[ $INSTALL_YAY == "1" ]] && echo on || echo off)" \
     "networkmanager" "Install NetworkManager" \
-    $([[ $INSTALL_NETWORK_MANAGER == "1" ]] && echo on || echo off) \
+    "$([[ $INSTALL_NETWORK_MANAGER == "1" ]] && echo on || echo off)" \
     "systemd-swap" "Manage swap files with systemd-swap" \
-    $([[ $INSTALL_SYSTEMD_SWAP == "1" ]] && echo on || echo off) \
+    "$([[ $INSTALL_SYSTEMD_SWAP == "1" ]] && echo on || echo off)" \
     3>&1 1>&2 2>&3
 }
 
@@ -768,8 +781,10 @@ validate_partition:efi() {
 
 validate_partition:check_if_mounted() {
   if [[ "$SKIP_MOUNTED_CHECK" != 0 ]]; then return; fi
-  local dev="$1"
-  local target=$(findmnt "$dev" -no 'TARGET')
+  local dev
+  local target
+  dev="$1"
+  target=$(findmnt "$dev" -no 'TARGET')
   if [[ -n "$target" ]]; then
     quit:already_mounted "$dev" "$target"
   fi
@@ -828,8 +843,9 @@ Welcome to Arch Linux! Before we begin, let's go over a few things:
     --colors \
     --ok-label "Next" \
     --msgbox "$message" \
-    "$(( $LINES - 8 ))" $WIDTH_MD
+    "$(( LINES - 8 ))" $WIDTH_MD
 
+  # shellcheck disable=SC2181
   if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
@@ -852,7 +868,7 @@ confirm:show_script_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title " $SCRIPT_FILE " \
     --exit-label "Continue" \
-    --textbox "$SCRIPT_FILE" $(( $LINES - 2 )) $WIDTH_LG
+    --textbox "$SCRIPT_FILE" $(( LINES - 2 )) $WIDTH_LG
 }
 
 confirm:show_confirm_dialog() {
@@ -888,7 +904,7 @@ app:edit_script() {
     --keep-window \
     --title " $SCRIPT_FILE " \
     --exit-label "Continue" \
-    --textbox "$SCRIPT_FILE" $(( $LINES - 2 )) $WIDTH_LG \
+    --textbox "$SCRIPT_FILE" $(( LINES - 2 )) $WIDTH_LG \
     --and-widget \
     --title "" \
     --yes-label "Edit and Install" \
@@ -944,7 +960,9 @@ script:write_start() {
     echo "#  ------------------------------------------------------------------"
     echo "#"
     echo "set -euo pipefail"
+    # shellcheck disable=SC2028
     echo '::() { echo -e "\n\033[0;1m==>\033[1;32m" "$*""\033[0m"; }'
+    # shellcheck disable=SC2016
     echo 'if [[ "$(id -u)" != 0 ]]; then :: "Please run this as root"; exit 1; fi'
     echo ''
   ) > "$SCRIPT_FILE"
@@ -1035,7 +1053,7 @@ script:write_pacstrap() {
       for locale in ${PRIMARY_LOCALE[*]}; do
         echo "  echo $(esc "$locale") >> /etc/locale.gen"
       done
-      echo "  echo LANG=$(esc $(util:get_primary_locale)) > /etc/locale.conf"
+      echo "  echo LANG=$(esc "$(util:get_primary_locale)") > /etc/locale.conf"
     )
     echo "  locale-gen"
     echo "END"
@@ -1143,6 +1161,7 @@ recipes:create_user() {
   echo ":: 'Creating user $(esc "$PRIMARY_USERNAME")'"
   echo "arch-chroot /mnt sh <<END"
   echo "  useradd -Nm -g users -G wheel,sys $(esc "$PRIMARY_USERNAME")"
+  # shellcheck disable=SC2028
   echo "  echo -e $(esc "$PRIMARY_PASSWORD")\"\\n\"$(esc "$PRIMARY_PASSWORD") | passwd $(esc "$PRIMARY_USERNAME")"
   echo "END"
 }
@@ -1220,7 +1239,8 @@ app:infer_defaults() {
   if [[ -f /etc/vconsole.conf ]]; then
     {
       set +e
-      local keymap="$(grep 'KEYMAP=' /etc/vconsole.conf | cut -d'=' -f2)"
+      local keymap
+      keymap="$(grep 'KEYMAP=' /etc/vconsole.conf | cut -d'=' -f2)"
       if [[ -n "$keymap" ]]; then
         KEYBOARD_LAYOUT="$keymap"
       fi
@@ -1265,7 +1285,8 @@ app:parse_options() {
 
 # Quit and exit
 quit:exit() {
-  local cmd="./$(basename "$SCRIPT_FILE")"
+  local cmd
+  cmd="./$(basename "$SCRIPT_FILE")"
   if [[ "$(pwd)" != "$(dirname "$SCRIPT_FILE")" ]]; then cmd="cd ; $cmd"; fi
   quit:exit_msg <<END
   You can proceed with the installation via:
@@ -1297,7 +1318,7 @@ quit:disk_is_mounted() {
   quit:exit_msg <<END
   The disk '$disk' seems to be mounted.
 
-$(findmnt -o 'SOURCE,TARGET' | grep $disk | sed 's/^/      /g')
+$(findmnt -o 'SOURCE,TARGET' | grep "$disk" | sed 's/^/      /g')
 
   Unmount it and run the installer again.
 
@@ -1551,6 +1572,7 @@ disk:show_mnt_warning() {
     20 $WIDTH_MD \
     3>&1 1>&2 2>&3
 
+  # shellcheck disable=SC2181
   if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
@@ -1566,7 +1588,9 @@ util:sudo() {
   local cmd="$1"
   if util:is_root; then
     $cmd
-  elif which sudo &>/dev/null; then
+  elif command -v sudo &>/dev/null; then
+    # shellcheck disable=SC2086
+    # This is intentionally not double-quoted.
     sudo $cmd
   else
     su -c "$cmd"
@@ -1585,7 +1609,7 @@ util:list_partitions() {
   # NAME="sda1" SIZE="883GB"
   lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
     | grep 'TYPE="part"' \
-    | grep "$(basename $disk)"
+    | grep "$(basename "$disk")"
 }
 
 # "en_US.UTF-8 UTF-8" -> "en_US.UTF-8"
@@ -1604,9 +1628,9 @@ util:is_mnt_mounted() {
 util:partition_info() {
   local partition="$1"
   NAME=""
-  eval $(lsblk -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
+  eval "$(lsblk -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
     | grep 'TYPE="part"' \
-    | grep "$(basename $partition)")
+    | grep "$(basename "$partition")")"
 
   if [[ -n "$NAME" ]]; then
     echo "$partition ($SIZE $FSTYPE)"
