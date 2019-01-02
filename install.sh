@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # vim:foldmethod=marker:foldmarker={,}
 set -eo pipefail
+trap quit:no_message INT
 
 # Default config / global state
 set_defaults() {
@@ -490,6 +491,8 @@ disk:confirm_strategy() {
     --msgbox "$message" \
     23 $WIDTH_MD \
     3>&1 1>&2 2>&3
+
+  if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
 # -------------------------------------------------------------------------------
@@ -807,8 +810,7 @@ welcome:show_dialog() {
   message="
 $(utils:arch_logo)
 
-Welcome to Arch Linux! Lets get started. Before we begin, let's go
-over a few things:
+Welcome to Arch Linux! Before we begin, let's go over a few things:
 
 - This installer will not do anything until the end. It's safe to
   navigate this installer's options. There will be a confirmation
@@ -823,9 +825,12 @@ over a few things:
   $INSTALLER_URL
   "
   $DIALOG "${DIALOG_OPTS[@]}" \
+    --colors \
     --ok-label "Next" \
     --msgbox "$message" \
     "$(( $LINES - 8 ))" $WIDTH_MD
+
+  if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
 # -------------------------------------------------------------------------------
@@ -1545,6 +1550,8 @@ disk:show_mnt_warning() {
     --msgbox "$message" \
     20 $WIDTH_MD \
     3>&1 1>&2 2>&3
+
+  if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
 # -------------------------------------------------------------------------------
