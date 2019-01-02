@@ -443,23 +443,30 @@ disk:confirm_strategy() {
   if [[ "$FS_DO_FDISK" == 1 ]]; then
     message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
     message+="The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \ZbAll of its data will be erased.\Zn"
-  fi
 
-  if [[ "$FS_FORMAT_EFI" == 1 ]]; then
-    message+="\n\n\Zb\Z2Format the EFI partition ($FS_EFI)\Zn\n"
+    message+="\n\n\Zb\Z2Create new EFI partition ($FS_EFI)\Zn\n"
     message+="This partition will be reformatted, and a new boot loader be put in its place."
+
+    message+="\n\n\Zb\Z2Create new Arch Linux partition ($FS_ROOT)\Zn\n"
+    message+="This new partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
   else
-    message+="\n\n\Zb\Z2Add boot loader to $FS_EFI\Zn\n"
-    message+="A new EFI boot loader will be added to \Zb$FS_EFI\Zn. Any existing boot loaders will be left untouched."
+    if [[ "$FS_FORMAT_EFI" == 1 ]]; then
+      message+="\n\n\Zb\Z2Format the EFI partition ($FS_EFI)\Zn\n"
+      message+="This partition will be reformatted, and a GRUB boot loader placed there."
+    else
+      message+="\n\n\Zb\Z2Add boot loader to $FS_EFI\Zn\n"
+      message+="A new GRUB boot loader will be added to \Zb$FS_EFI\Zn. It won't be reformatted. Any existing boot loaders will be left untouched."
+    fi
+    if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
+      message+="\n\n\Zb\Z2Format the root partition ($FS_ROOT)\Zn\n"
+      message+="This existing partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
+    else
+      message+="\n\n\Zb\Z2Install Arch Linux to $FS_ROOT\Zn\n"
+      message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
+    fi
   fi
 
-  if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
-    message+="\n\n\Zb\Z2Format the root partition ($FS_ROOT)\Zn\n"
-    message+="This partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
-  else
-    message+="\n\n\Zb\Z2Install Arch Linux into the root partition ($FS_ROOT)\Zn\n"
-    message+="This partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
-  fi
+  # TODO: Warn if certain partition types are not supported
 
   message+="\n\nPress \ZbNext\Zn and we'll continue configuring your installation. None of these operations will be done until the final step."
   message+="\n "
