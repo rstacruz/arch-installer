@@ -459,14 +459,17 @@ disk:confirm_strategy() {
     if [[ "$FS_FORMAT_EFI" == 1 ]]; then
       message+="\n\n\Zb\Z2Format the EFI partition, $(util:partition_info $FS_EFI)\Zn\n"
       message+="This partition will be reformatted. A GRUB boot loader entry will be placed there."
-    else
+    elif [[ -n "$FS_EFI" ]]; then
       message+="\n\n\Zb\Z2Add boot loader to $(util:partition_info $FS_EFI)\Zn\n"
       message+="A new GRUB boot loader entry will be added to \Zb$FS_EFI\Zn. It won't be reformatted. Any existing boot loaders will be left untouched."
+    else
+      message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
+      message+="You will need to install a boot loader yourself (eg, GRUB)."
     fi
     if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
       message+="\n\n\Zb\Z2Format the root partition, $(util:partition_info $FS_ROOT)\Zn\n"
       message+="This existing partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
-    else
+    elif [[ -n "$FS_ROOT" ]]; then
       message+="\n\n\Zb\Z2Install Arch Linux to $(util:partition_info $FS_ROOT)\Zn\n"
       message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
     fi
