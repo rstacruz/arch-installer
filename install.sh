@@ -110,12 +110,14 @@ main() {
   fi
 
   # Configure the disk first
-  config:disk_strategy
+  disk:config_strategy
 
   # (FS_ROOT will be blank if /mnt is to be used.)
   if [[ "$FS_USE_MNT" == "0" ]] && [[ "$FS_ROOT" == "$FS_EFI" ]]; then
     quit:invalid_partition_selection
   fi
+
+  disk:confirm_strategy
 
   # Configure locales and such
   config:system
@@ -231,53 +233,6 @@ config:system() {
   done; set -e
 }
 
-# Configure disk strategy (partition, wipe, /mnt)
-config:disk_strategy() {
-  strategy="$(config:show_partition_strategy_dialog)"
-  case "$strategy" in
-    Partition*)
-      quit:cfdisk
-      ;;
-
-    Wipe*)
-      choice="$(config:show_disk_dialog --wipe)"
-      FS_DISK="$choice"
-      check:not_mounted "$FS_DISK"
-      FS_DO_FDISK=1
-      INSTALL_GRUB=1
-      FS_FORMAT_EFI=1
-      FS_FORMAT_ROOT=1
-      ;;
-
-    Use\ /mnt*)
-      if ! util:is_mnt_mounted; then quit:mnt_not_mounted; fi
-      warning:show_mnt_warning
-      FS_USE_MNT=1
-      FS_ROOT=""
-      FS_EFI=""
-      ;;
-
-    Choose*)
-      choice="$(config:show_disk_dialog --format)"
-      FS_DISK="$choice"
-
-      # Are the required partitions available?
-      check:ensure_valid_partitions "$FS_DISK"
-
-      # Pick other patitions
-      config:pick_root_partition
-      config:pick_efi_partition
-
-      # Check them if they can be mounted
-      if [[ "$SKIP_PARTITION_MOUNT_CHECK" == "0" ]]; then
-        validate_partition:show_warning
-        validate_partition:efi
-        validate_partition:root
-      fi
-      ;;
-  esac
-}
-
 # Pick Linux partition ($FS_ROOT)
 config:pick_root_partition() {
   choice="$(config:show_partition_dialog \
@@ -310,21 +265,6 @@ config:pick_efi_partition() {
     INSTALL_GRUB=1
     FS_EFI="$choice"
   fi
-}
-
-config:show_partition_strategy_dialog() {
-  local title="How do you want to install Arch Linux on your drive?"
-
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --title " Choose disk strategy " \
-    --no-cancel \
-    --menu "\n$title\n " \
-    14 $WIDTH_MD 4 \
-    "Wipe drive" "Wipe my drive completely." \
-    "Choose partitions" "I've already partitioned my disks." \
-    "Partition manually" "Let me partition my disk now." \
-    "Use /mnt" "(Advanced) Use whatever is mounted on /mnt." \
-    3>&1 1>&2 2>&3
 }
 
 config:show_disk_dialog() {
@@ -427,6 +367,116 @@ config:choose_locale() {
     util:list_locales
   ) | form:multi_select \
     "Locales"
+}
+
+# -------------------------------------------------------------------------------
+
+# Configure disk strategy (partition, wipe, /mnt)
+disk:config_strategy() {
+  strategy="$(disk:choose_strategy_dialog)"
+  case "$strategy" in
+    Partition*)
+      quit:cfdisk
+      ;;
+
+    Wipe*)
+      choice="$(config:show_disk_dialog --wipe)"
+      FS_DISK="$choice"
+      check:not_mounted "$FS_DISK"
+      FS_DO_FDISK=1
+      INSTALL_GRUB=1
+      FS_FORMAT_EFI=1
+      FS_FORMAT_ROOT=1
+      ;;
+
+    Use\ /mnt*)
+      if ! util:is_mnt_mounted; then quit:mnt_not_mounted; fi
+      warning:show_mnt_warning
+      FS_USE_MNT=1
+      FS_ROOT=""
+      FS_EFI=""
+      ;;
+
+    Choose*)
+      choice="$(config:show_disk_dialog --format)"
+      FS_DISK="$choice"
+
+      # Are the required partitions available?
+      check:ensure_valid_partitions "$FS_DISK"
+
+      # Pick other patitions
+      config:pick_root_partition
+      config:pick_efi_partition
+
+      # Check them if they can be mounted
+      if [[ "$SKIP_PARTITION_MOUNT_CHECK" == "0" ]]; then
+        validate_partition:show_warning
+        validate_partition:efi
+        validate_partition:root
+      fi
+      ;;
+  esac
+}
+
+# (partition, wipe, /mnt)
+disk:choose_strategy_dialog() {
+  local title="How do you want to install Arch Linux on your drive?"
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title " Disk strategy " \
+    --no-cancel \
+    --menu "\n$title\n " \
+    14 $WIDTH_MD 4 \
+    "Wipe drive" "Wipe my drive completely." \
+    "Choose partitions" "I've already partitioned my disks." \
+    "Partition manually" "Let me partition my disk now." \
+    "Use /mnt" "(Advanced) Use whatever is mounted on /mnt." \
+    3>&1 1>&2 2>&3
+}
+
+# Show the user what's about to happen
+disk:confirm_strategy() {
+  set +e
+  message=""
+  message+="These operations will be done to your disk:"
+
+  if [[ "$FS_DO_FDISK" == 1 ]]; then
+    message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
+    message+="The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \ZbAll of its data will be erased.\Zn"
+  fi
+
+  if [[ "$FS_FORMAT_EFI" == 1 ]]; then
+    message+="\n\n\Zb\Z2Format the EFI partition ($FS_EFI)\Zn\n"
+    message+="This partition will be reformatted, and a new boot loader be put in its place."
+  else
+    message+="\n\n\Zb\Z2Add boot loader to $FS_EFI\Zn\n"
+    message+="A new EFI boot loader will be added to \Zb$FS_EFI\Zn."
+  fi
+
+  if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
+    message+="\n\n\Zb\Z2Format the root partition ($FS_ROOT)\Zn\n"
+    message+="This partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
+  else
+    message+="\n\n\Zb\Z2Install Arch Linux into the root partition ($FS_ROOT)\Zn\n"
+    message+="This partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
+  fi
+
+  message+="\n\nPress \ZbNext\Zn and we'll continue configuring your installation. None of these operations will be done until the final step."
+  message+="\n "
+
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --colors \
+    --title " Review " \
+    --yes-label "Next" \
+    --no-label "Exit" \
+    --yesno "\n$message\n " \
+    24 $WIDTH_MD \
+    3>&1 1>&2 2>&3
+
+  case "$?" in
+    0) return ;;
+    *) quit:no_message ;;
+  esac
 }
 
 # -------------------------------------------------------------------------------
@@ -1204,6 +1254,12 @@ quit:exit() {
 
   Feel free to edit it and see if everything is in order!
 END
+}
+
+# Quit without message
+quit:no_message() {
+  clear
+  exit 1
 }
 
 quit:exit_msg() {
