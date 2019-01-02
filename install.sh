@@ -706,7 +706,7 @@ config:show_recipes_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --separate-output \
     --no-cancel \
-    --ok-label "Next" \
+    --ok-label "OK" \
     --title " Extras " \
     --checklist "\n$body\n " \
     15 $WIDTH_LG 8 \
@@ -857,7 +857,7 @@ confirm:show_confirm_dialog() {
   message+="An install script's been prepared for you. You can run it now by selecting [Install now].\n"
   message+=" "
 
-  local recipe_opts=("Additional options" "")
+  local recipe_opts=("Additional options..." "")
   if [[ "$ENABLE_RECIPES" != 1 ]]; then recipe_opts=(); fi
   
   $DIALOG "${DIALOG_OPTS[@]}" \
