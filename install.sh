@@ -34,7 +34,7 @@ set_defaults() {
   DIALOG=${DIALOG:-dialog}
   DIALOG_OPTS=( \
     --no-collapse \
-    --backtitle "$INSTALLER_TITLE (press [Esc] twice to exit)" \
+    --backtitle "$INSTALLER_TITLE (press [Ctrl-C] to exit)" \
     --title " $INSTALLER_TITLE " \
   )
 
@@ -820,7 +820,7 @@ over a few things:
   dialog at the end of this process; nothing destructive will be
   done before that.
 
-- Press [Esc] twice at any time to exit this installer.
+- Press [Ctrl-C] at any time to exit this installer.
 
 - Be sure to read the Arch Linux wiki. There's no substitute to
   understanding everything that's happening :)
