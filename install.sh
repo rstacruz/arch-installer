@@ -117,7 +117,11 @@ main() {
     quit:invalid_partition_selection
   fi
 
-  disk:confirm_strategy
+  if [[ "$FS_USE_MNT" == 1 ]]; then
+    disk:show_mnt_warning
+  else
+    disk:confirm_strategy
+  fi
 
   # Configure locales and such
   config:system
@@ -391,7 +395,6 @@ disk:config_strategy() {
 
     Use\ /mnt*)
       if ! util:is_mnt_mounted; then quit:mnt_not_mounted; fi
-      warning:show_mnt_warning
       FS_USE_MNT=1
       FS_ROOT=""
       FS_EFI=""
@@ -439,6 +442,7 @@ disk:confirm_strategy() {
   set +e
   message=""
   message+="These operations will be done to your disk:"
+  message+="\n────────────────────────────────────────────────────────────────────"
 
   if [[ "$FS_DO_FDISK" == 1 ]]; then
     message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
@@ -451,24 +455,24 @@ disk:confirm_strategy() {
     message+="This new partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
   else
     if [[ "$FS_FORMAT_EFI" == 1 ]]; then
-      message+="\n\n\Zb\Z2Format the EFI partition ($FS_EFI)\Zn\n"
-      message+="This partition will be reformatted, and a GRUB boot loader placed there."
+      message+="\n\n\Zb\Z2Format the EFI partition, $(util:partition_info $FS_EFI)\Zn\n"
+      message+="This partition will be reformatted. A GRUB boot loader entry will be placed there."
     else
-      message+="\n\n\Zb\Z2Add boot loader to $FS_EFI\Zn\n"
-      message+="A new GRUB boot loader will be added to \Zb$FS_EFI\Zn. It won't be reformatted. Any existing boot loaders will be left untouched."
+      message+="\n\n\Zb\Z2Add boot loader to $(util:partition_info $FS_EFI)\Zn\n"
+      message+="A new GRUB boot loader entry will be added to \Zb$FS_EFI\Zn. It won't be reformatted. Any existing boot loaders will be left untouched."
     fi
     if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
-      message+="\n\n\Zb\Z2Format the root partition ($FS_ROOT)\Zn\n"
+      message+="\n\n\Zb\Z2Format the root partition, $(util:partition_info $FS_ROOT)\Zn\n"
       message+="This existing partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
     else
-      message+="\n\n\Zb\Z2Install Arch Linux to $FS_ROOT\Zn\n"
+      message+="\n\n\Zb\Z2Install Arch Linux to $(util:partition_info $FS_ROOT)\Zn\n"
       message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
     fi
   fi
 
   # TODO: Warn if certain partition types are not supported
-
-  message+="\n\nPress \ZbNext\Zn and we'll continue configuring your installation. None of these operations will be done until the final step."
+  message+="\n\n────────────────────────────────────────────────────────────────────"
+  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation. None of these operations will be done until the final step."
   message+="\n "
 
   $DIALOG "${DIALOG_OPTS[@]}" \
@@ -480,10 +484,8 @@ disk:confirm_strategy() {
     24 $WIDTH_MD \
     3>&1 1>&2 2>&3
 
-  case "$?" in
-    0) return ;;
-    *) quit:no_message ;;
-  esac
+  # Exit if 'Next' isn't chosen
+  if [[ "$?" != 0 ]]; then quit:no_message; fi
 }
 
 # -------------------------------------------------------------------------------
@@ -1512,10 +1514,36 @@ quit:no_vfat() {
 
 # -------------------------------------------------------------------------------
 
-warning:show_mnt_warning() {
+disk:show_mnt_warning() {
+  set +e
+  message=""
+  message+="Please review the installation strategy:"
+  message+="\n────────────────────────────────────────────────────────────────────"
+
+  message+="\n\n\Zb\Z2No disk operations\Zn\n"
+  message+="No partition tables will be edited. No partitions will be (re)formatted."
+
+  message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
+  message+="You will need to install a boot loader yourself (eg, GRUB)."
+
+  message+="\n\n\Zb\Z2Install Arch Linux into /mnt\Zn\n"
+  message+="Arch Linux will be installed into whatever disk is mounted in \Zb/mnt\Zn at the moment."
+
+  message+="\n\n────────────────────────────────────────────────────────────────────"
+  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation."
+  message+="\n "
+
   $DIALOG "${DIALOG_OPTS[@]}" \
-    --msgbox "\n/mnt will be used as is.\n\nYou'll also need to set up a boot loader yourself.\n " \
-    10 40
+    --colors \
+    --title " Review " \
+    --yes-label "Next" \
+    --no-label "Exit" \
+    --yesno "\n$message\n " \
+    24 $WIDTH_MD \
+    3>&1 1>&2 2>&3
+
+  # Exit if 'Next' isn't chosen
+  if [[ "$?" != 0 ]]; then quit:no_message; fi
 }
 
 # -------------------------------------------------------------------------------
@@ -1563,6 +1591,20 @@ util:is_mnt_mounted() {
 
   # Grep returns non-zero if it's not found
   findmnt '/mnt' | grep '/mnt' &>/dev/null
+}
+
+util:partition_info() {
+  local partition="$1"
+  NAME=""
+  eval $(lsblk -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
+    | grep 'TYPE="part"' \
+    | grep "$(basename $partition)")
+
+  if [[ -n "$NAME" ]]; then
+    echo "$partition ($SIZE $FSTYPE)"
+  else
+    echo "$partition (new)"
+  fi
 }
 
 # Random utils
