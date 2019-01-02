@@ -291,6 +291,7 @@ config:show_disk_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title " Disks " \
     --no-cancel \
+    --ok-label "Next" \
     --menu "\n$title\n$warning\n " \
     14 $WIDTH_SM 4 \
     ${pairs[*]} \
@@ -328,7 +329,7 @@ config:show_partition_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title " $title " \
     --no-cancel \
-    --ok-label "Use" \
+    --ok-label "Next" \
     --menu "\n$body\n " \
     17 $WIDTH_SM 8 \
     ${pairs[*]} \
@@ -428,6 +429,7 @@ disk:choose_strategy_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title " Disk strategy " \
     --no-cancel \
+    --ok-label "Next" \
     --menu "\n$title\n " \
     14 $WIDTH_MD 4 \
     "Wipe drive" "Wipe my drive completely." \
@@ -858,6 +860,7 @@ confirm:show_confirm_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title " Install now " \
     --no-cancel \
+    --ok-label "Go!" \
     --menu "$message" \
     17 $WIDTH_SM 4 \
     "Install now" "" \
