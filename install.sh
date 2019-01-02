@@ -475,21 +475,20 @@ review:get_disk_strategy() {
 
 # Show the user what's about to happen
 disk:confirm_strategy() {
-  set +e
   message=""
   message+="These operations will be done to your disk:"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
   message+="$(review:get_disk_strategy)"
   message+="\n"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation. None of these operations will be done until the final step."
+  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit. None of these operations will be done until the final step."
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --colors \
     --title " Review " \
     --ok-label "Next" \
     --msgbox "$message" \
-    22 $WIDTH_MD \
+    23 $WIDTH_MD \
     3>&1 1>&2 2>&3
 }
 
@@ -1522,7 +1521,6 @@ quit:no_vfat() {
 # -------------------------------------------------------------------------------
 
 disk:show_mnt_warning() {
-  set +e
   message=""
   message+="Please review the installation strategy:"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
@@ -1538,7 +1536,7 @@ disk:show_mnt_warning() {
 
   message+="\n"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation."
+  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit."
 
   $DIALOG "${DIALOG_OPTS[@]}" \
     --colors \
