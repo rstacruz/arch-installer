@@ -439,13 +439,8 @@ disk:choose_strategy_dialog() {
     3>&1 1>&2 2>&3
 }
 
-# Show the user what's about to happen
-disk:confirm_strategy() {
-  set +e
+review:get_disk_strategy() {
   message=""
-  message+="These operations will be done to your disk:"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-
   if [[ "$FS_DO_FDISK" == 1 ]]; then
     message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
     message+="The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \ZbAll of its data will be erased.\Zn"
@@ -474,8 +469,17 @@ disk:confirm_strategy() {
       message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
     fi
   fi
-
   # TODO: Warn if certain partition types are not supported
+  echo "$message"
+}
+
+# Show the user what's about to happen
+disk:confirm_strategy() {
+  set +e
+  message=""
+  message+="These operations will be done to your disk:"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
+  message+="$(review:get_disk_strategy)"
   message+="\n"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
   message+="\nPress \ZbNext\Zn and we'll continue configuring your installation. None of these operations will be done until the final step."
@@ -854,7 +858,7 @@ confirm:show_script_dialog() {
 confirm:show_confirm_dialog() {
   local message="\n"
   message+="Ready to install!\n"
-  message+="An install script's been prepared for you. You can run it now by selecting [Install now].\n"
+  message+="An install script's been prepared for you. You can run it now by selecting \ZbInstall now\Zn.\n"
   message+=" "
 
   local recipe_opts=("Additional options..." "")
@@ -863,6 +867,7 @@ confirm:show_confirm_dialog() {
   $DIALOG "${DIALOG_OPTS[@]}" \
     --title " Install now " \
     --no-cancel \
+    --colors \
     --ok-label "Go!" \
     --menu "$message" \
     17 $WIDTH_SM 4 \
