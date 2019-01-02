@@ -28,7 +28,9 @@ A more detailed guide is available here: [**Installation guide**](./docs/install
 
 ## Limitations
 
-The installer is best suited for modern desktops. Only GPT disks and UEFI boot are fully-supported. (Legacy MBR setups are okay, too, but you'll have to partition/format/mount it manually.)
+- The installer is best suited for modern desktops. Only GPT disks and UEFI boot are fully-supported. (Legacy MBR setups are okay, too, but you'll have to partition/format/mount it manually.)
+
+- Swap partitions aren't automatically handled. (You can enable automatic swapfile management via systemd-swap, which I personally prefer.)
 
 ## Is it safe?
 
