@@ -1,6 +1,6 @@
 # Connecting to the Internet
 
-There are 3 ways you can get online:
+After booting into the Arch Linux ISO, there are 3 ways you can get online:
 
 - [Via wifi](#via-wifi)
 - [Via ethernet](#via-ethernet)
