@@ -401,6 +401,7 @@ disk:config_strategy() {
 
     Use\ /mnt*)
       if ! util:is_mnt_mounted; then quit:mnt_not_mounted; fi
+      config:grub
       FS_USE_MNT=1
       FS_ROOT=""
       FS_EFI=""
@@ -749,6 +750,34 @@ config:show_user_dialog() {
     "System hostname" "[$SYSTEM_HOSTNAME]" \
     "Your username" "[$PRIMARY_USERNAME]" \
     "Your password" "[$PRIMARY_PASSWORD]" \
+    3>&1 1>&2 2>&3
+}
+
+config:grub() {
+  choice="$(config:grub_dialog)"
+  case "$choice" in
+    Install*) INSTALL_GRUB=1 ;;
+    *) INSTALL_GRUB=0 ;;
+  esac
+}
+
+config:grub_dialog() {
+  message=""
+  message+="\n"
+  message+="Install GRUB bootloader to /mnt/boot?"
+  message+="\n\n"
+  message+="A bootloader is required to boot your new Arch Linux installation. "
+  message+="You can skip this now, but you'll have to set it up manually later."
+  message+="\n "
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title " Boot loader " \
+    --no-cancel \
+    --colors \
+    --ok-label "Next" \
+    --menu "$message" \
+    15 $WIDTH_SM 4 \
+    "Install bootloader" "" \
+    "Skip" "" \
     3>&1 1>&2 2>&3
 }
 
@@ -1554,8 +1583,13 @@ disk:show_mnt_warning() {
   message+="\n\n\Zb\Z2No disk operations\Zn\n"
   message+="No partition tables will be edited. No partitions will be (re)formatted."
 
-  message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
-  message+="You will need to install a boot loader yourself (eg, GRUB)."
+  if [[ "$INSTALL_GRUB" == "0" ]]; then
+    message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
+    message+="You will need to install a boot loader yourself (eg, GRUB)."
+  else
+    message+="\n\n\Zb\Z2Install boot loader to /mnt/boot\Zn\n"
+    message+="The GRUB boot loader will be installed."
+  fi
 
   message+="\n\n\Zb\Z2Install Arch Linux into /mnt\Zn\n"
   message+="Arch Linux will be installed into whatever disk is mounted in \Zb/mnt\Zn at the moment."
@@ -1569,7 +1603,7 @@ disk:show_mnt_warning() {
     --title " Review " \
     --ok-label "Next" \
     --msgbox "$message" \
-    20 $WIDTH_MD \
+    22 $WIDTH_MD \
     3>&1 1>&2 2>&3
 
   # shellcheck disable=SC2181
