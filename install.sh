@@ -1149,7 +1149,7 @@ recipes:setup_grub() {
   echo ''
   echo ":: 'Installing GRUB boot loader'"
   echo "arch-chroot /mnt sh <<END"
-  echo "  pacman -Syu --noconfirm grub efibootmgr os-prober"
+  echo "  pacman -Syu --noconfirm grub efibootmgr"
   echo "  grub-install --target=x86_64-efi --efi-directory=$ESP_PATH --bootloader-id=GRUB"
   echo "  grub-mkconfig -o $ESP_PATH/grub/grub.cfg"
   echo "END"
