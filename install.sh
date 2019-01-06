@@ -552,11 +552,18 @@ disk:config_strategy() {
       # Are the required partitions available?
       check:ensure_valid_partitions "$FS_DISK"
 
+      # TODO: auto-find efi partition
+
       # Pick other patitions
       config:pick_root_partition
-      config:pick_efi_partition
+      # TODO: format root
+      config:validate_root_partition
 
-      # Check them if they can be mounted
+      config:pick_efi_partition
+      config:format_efi_partition
+
+      # Check them if they can be mounted;
+      # exit if they can't be mounted
       if [[ "$SKIP_PARTITION_MOUNT_CHECK" == "0" ]]; then
         validate_partition:show_warning
         validate_partition:efi
@@ -790,6 +797,16 @@ form:text_input() {
 }
 
 # -------------------------------------------------------------------------------
+
+config:validate_root_partition() {
+  # TODO: if it's not ext4, exit and say we don't support it
+  true
+}
+
+config:format_efi_partition() {
+  # TODO: ask the user if it should be formatted
+  true
+}
 
 # Inform the user why they'll be asked for a sudo password.
 # (When ran from the arch installer, there's no need to sudo,
