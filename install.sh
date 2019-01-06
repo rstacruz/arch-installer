@@ -597,8 +597,9 @@ review:get_disk_strategy() {
   else
     if [[ "$FS_FORMAT_EFI" == 1 ]]; then
       message+="\n\n\Zb\Z2Format the EFI partition, $(util:partition_info $FS_EFI)\Zn\n"
-      message+="This partition will be reformatted. A GRUB boot loader entry will be placed there."
-    elif [[ -n "$FS_EFI" ]]; then
+      message+="This partition will be reformatted as \Vbfat32\Zn."
+    fi
+    if [[ "$INSTALL_GRUB" == 1 ]]; then
       message+="\n\n\Zb\Z2Add boot loader to $(util:partition_info $FS_EFI)\Zn\n"
       message+="A new GRUB boot loader entry will be added to \Zb$FS_EFI\Zn. It won't be reformatted. Any existing boot loaders will be left untouched."
     else
@@ -607,11 +608,10 @@ review:get_disk_strategy() {
     fi
     if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
       message+="\n\n\Zb\Z2Format the root partition, $(util:partition_info $FS_ROOT)\Zn\n"
-      message+="This existing partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
-    elif [[ -n "$FS_ROOT" ]]; then
-      message+="\n\n\Zb\Z2Install Arch Linux to $(util:partition_info $FS_ROOT)\Zn\n"
-      message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
+      message+="This existing partition will be reformatted as \Zbext4\Zn."
     fi
+    message+="\n\n\Zb\Z2Install Arch Linux to $(util:partition_info $FS_ROOT)\Zn\n"
+    message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
   fi
   # TODO: Warn if certain partition types are not supported
   echo "$message"
