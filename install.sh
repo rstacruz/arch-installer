@@ -210,23 +210,23 @@ check:not_mounted() {
 # Configure keyboard layout, timezone, locale
 config:system() {
   set +e; while true; do
-    choice="$(config:show_system_dialog)"
+    choice="$(config:system_dialog)"
     case "$?" in
       0)
         case "$choice" in
           Keyboard\ layout)
-            choice="$(config:choose_keyboard_layout "$KEYBOARD_LAYOUT")"
+            choice="$(system:choose_keyboard_layout "$KEYBOARD_LAYOUT")"
             if [[ -n "$choice" ]]; then
               KEYBOARD_LAYOUT="$choice"
               loadkeys "$choice"
             fi
             ;;
           Time\ zone)
-            choice="$(config:choose_timezone "$TIMEZONE")"
+            choice="$(system:choose_timezone "$TIMEZONE")"
             if [[ -n "$choice" ]]; then TIMEZONE="$choice"; fi
             ;;
           Locales)
-            choice="$(config:choose_locale)"
+            choice="$(system:choose_locale)"
             if [[ -n "$choice" ]]; then PRIMARY_LOCALE="$choice"; fi
             ;;
         esac
@@ -236,6 +236,142 @@ config:system() {
     esac
   done; set -e
 }
+
+# Config: Show system dialog
+config:system_dialog() {
+  message="\nYou can <Change> any of these settings. Move to the <Next> screen when you're done.\n "
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title " Locales " \
+    --no-cancel \
+    --ok-label "Change" \
+    --extra-button \
+    --extra-label "Next" \
+    --menu "$message" \
+    14 $WIDTH_SM 3 \
+    "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
+    "Time zone" "[$TIMEZONE]" \
+    "Locales" "[$(echo "${PRIMARY_LOCALE}" | xargs echo)]" \
+    3>&1 1>&2 2>&3
+}
+
+# Config: user/password
+config:user() {
+  set +e; while true; do
+    choice="$(config:user_dialog)"
+    case "$?" in
+      0)
+        case "$choice" in
+          System\ hostname)
+            SYSTEM_HOSTNAME=$( \
+              form:text_input \
+              "System hostname:" "$SYSTEM_HOSTNAME" \
+              "This is how your system will identify itself in networks. Think of this like the name of your computer.")
+            ;;
+          Your\ username)
+            PRIMARY_USERNAME=$(\
+              form:text_input \
+              "Username:" "$PRIMARY_USERNAME" \
+              "This is the user you will be using on a day-to-day basis.")
+            ;;
+          Your\ password)
+            PRIMARY_PASSWORD=$( \
+              form:text_input \
+              "Password:" "$PRIMARY_PASSWORD" \
+              "Password for your primary user. (You can always change this later!)"
+            )
+            ;;
+        esac
+        ;;
+      3) break ;; # "Next"
+      *) quit:exit ;; # "Cancel"
+    esac
+  done; set -e
+}
+
+# Config: user/password (dialog)
+config:user_dialog() {
+  message="\nTell me about the user you're going to use day-to-day.\n "
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title " Configure your user " \
+    --no-cancel \
+    --no-shadow \
+    --ok-label "Change" \
+    --extra-button \
+    --extra-label "Next" \
+    --menu "$message"\
+    13 $WIDTH_SM 3 \
+    "System hostname" "[$SYSTEM_HOSTNAME]" \
+    "Your username" "[$PRIMARY_USERNAME]" \
+    "Your password" "[$PRIMARY_PASSWORD]" \
+    3>&1 1>&2 2>&3
+}
+
+# Let the user pick recipes they want
+config:recipes() {
+  result="$(config:recipes_dialog)"
+  INSTALL_YAY=0
+  INSTALL_NETWORK_MANAGER=0
+  INSTALL_SYSTEMD_SWAP=0
+  for item in $result; do
+    case "$item" in
+      yay) INSTALL_YAY=1 ;;
+      networkmanager) INSTALL_NETWORK_MANAGER=1 ;;
+      systemd-swap) INSTALL_SYSTEMD_SWAP=1 ;;
+    esac
+  done
+}
+
+# Let the user pick recipes they want (dialog)
+config:recipes_dialog() {
+  body="Pick some other extras to install.\n"
+  body+="Press [space] to select or deselect items."
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --separate-output \
+    --no-cancel \
+    --ok-label "OK" \
+    --title " Extras " \
+    --checklist "\n$body\n " \
+    15 $WIDTH_LG 8 \
+    "yay" "Install yay, the AUR helper" \
+    "$([[ $INSTALL_YAY == "1" ]] && echo on || echo off)" \
+    "networkmanager" "Install NetworkManager" \
+    "$([[ $INSTALL_NETWORK_MANAGER == "1" ]] && echo on || echo off)" \
+    "systemd-swap" "Manage swap files with systemd-swap" \
+    "$([[ $INSTALL_SYSTEMD_SWAP == "1" ]] && echo on || echo off)" \
+    3>&1 1>&2 2>&3
+}
+
+# Config: ask if GRUB should be installed
+config:grub() {
+  choice="$(config:grub_dialog)"
+  case "$choice" in
+    Install*) INSTALL_GRUB=1 ;;
+    *) INSTALL_GRUB=0 ;;
+  esac
+}
+
+# Config: ask if GRUB should be installed (dialog)
+config:grub_dialog() {
+  message=""
+  message+="\n"
+  message+="Install GRUB bootloader to /mnt/boot?"
+  message+="\n\n"
+  message+="A bootloader is required to boot your new Arch Linux installation. "
+  message+="You can skip this now, but you'll have to set it up manually later."
+  message+="\n "
+  $DIALOG "${DIALOG_OPTS[@]}" \
+    --title " Boot loader " \
+    --no-cancel \
+    --colors \
+    --ok-label "Next" \
+    --menu "$message" \
+    15 $WIDTH_SM 4 \
+    "Install bootloader" "" \
+    "Skip" "" \
+    3>&1 1>&2 2>&3
+}
+
+# -------------------------------------------------------------------------------
 
 # Pick Linux partition ($FS_ROOT)
 config:pick_root_partition() {
@@ -342,9 +478,11 @@ config:show_partition_dialog() {
     3>&1 1>&2 2>&3
 }
 
+# -------------------------------------------------------------------------------
+
 # Returns (echoes) a timezone. `$1` currently-selected one.
-#     config:choose_timezone "Asia/Manila"
-config:choose_timezone() {
+#     system:choose_timezone "Asia/Manila"
+system:choose_timezone() {
   active="$1"
   choice="$(form:file_picker \
     "$ZONES_PATH" \
@@ -356,7 +494,7 @@ config:choose_timezone() {
 }
 
 # Returns (echoes) a keyboard layout.
-config:choose_keyboard_layout() {
+system:choose_keyboard_layout() {
   active="$1"
   (
     echo us
@@ -370,7 +508,7 @@ config:choose_keyboard_layout() {
 }
 
 # Returns (echoes) a locale.
-config:choose_locale() {
+system:choose_locale() {
   (
     echo "en_US.UTF-8 UTF-8"
     echo "en_GB.UTF-8 UTF-8"
@@ -648,136 +786,6 @@ form:text_input() {
     "$label\n$description" \
     10 $WIDTH_SM \
     "$value" \
-    3>&1 1>&2 2>&3
-}
-
-# Config: Show system dialog
-config:show_system_dialog() {
-  message="\nYou can <Change> any of these settings. Move to the <Next> screen when you're done.\n "
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --title " Locales " \
-    --no-cancel \
-    --ok-label "Change" \
-    --extra-button \
-    --extra-label "Next" \
-    --menu "$message" \
-    14 $WIDTH_SM 3 \
-    "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
-    "Time zone" "[$TIMEZONE]" \
-    "Locales" "[$(echo "${PRIMARY_LOCALE}" | xargs echo)]" \
-    3>&1 1>&2 2>&3
-}
-
-config:user() {
-  set +e; while true; do
-    choice="$(config:show_user_dialog)"
-    case "$?" in
-      0)
-        case "$choice" in
-          System\ hostname)
-            SYSTEM_HOSTNAME=$( \
-              form:text_input \
-              "System hostname:" "$SYSTEM_HOSTNAME" \
-              "This is how your system will identify itself in networks. Think of this like the name of your computer.")
-            ;;
-          Your\ username)
-            PRIMARY_USERNAME=$(\
-              form:text_input \
-              "Username:" "$PRIMARY_USERNAME" \
-              "This is the user you will be using on a day-to-day basis.")
-            ;;
-          Your\ password)
-            PRIMARY_PASSWORD=$( \
-              form:text_input \
-              "Password:" "$PRIMARY_PASSWORD" \
-              "Password for your primary user. (You can always change this later!)"
-            )
-            ;;
-        esac
-        ;;
-      3) break ;; # "Next"
-      *) quit:exit ;; # "Cancel"
-    esac
-  done; set -e
-}
-
-# Let the user pick recipes they want
-config:recipes() {
-  result="$(config:show_recipes_dialog)"
-  INSTALL_YAY=0
-  INSTALL_NETWORK_MANAGER=0
-  INSTALL_SYSTEMD_SWAP=0
-  for item in $result; do
-    case "$item" in
-      yay) INSTALL_YAY=1 ;;
-      networkmanager) INSTALL_NETWORK_MANAGER=1 ;;
-      systemd-swap) INSTALL_SYSTEMD_SWAP=1 ;;
-    esac
-  done
-}
-
-config:show_recipes_dialog() {
-  body="Pick some other extras to install.\n"
-  body+="Press [space] to select or deselect items."
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --separate-output \
-    --no-cancel \
-    --ok-label "OK" \
-    --title " Extras " \
-    --checklist "\n$body\n " \
-    15 $WIDTH_LG 8 \
-    "yay" "Install yay, the AUR helper" \
-    "$([[ $INSTALL_YAY == "1" ]] && echo on || echo off)" \
-    "networkmanager" "Install NetworkManager" \
-    "$([[ $INSTALL_NETWORK_MANAGER == "1" ]] && echo on || echo off)" \
-    "systemd-swap" "Manage swap files with systemd-swap" \
-    "$([[ $INSTALL_SYSTEMD_SWAP == "1" ]] && echo on || echo off)" \
-    3>&1 1>&2 2>&3
-}
-
-# Config: Show user dialog
-config:show_user_dialog() {
-  message="\nTell me about the user you're going to use day-to-day.\n "
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --title " Configure your user " \
-    --no-cancel \
-    --no-shadow \
-    --ok-label "Change" \
-    --extra-button \
-    --extra-label "Next" \
-    --menu "$message"\
-    13 $WIDTH_SM 3 \
-    "System hostname" "[$SYSTEM_HOSTNAME]" \
-    "Your username" "[$PRIMARY_USERNAME]" \
-    "Your password" "[$PRIMARY_PASSWORD]" \
-    3>&1 1>&2 2>&3
-}
-
-config:grub() {
-  choice="$(config:grub_dialog)"
-  case "$choice" in
-    Install*) INSTALL_GRUB=1 ;;
-    *) INSTALL_GRUB=0 ;;
-  esac
-}
-
-config:grub_dialog() {
-  message=""
-  message+="\n"
-  message+="Install GRUB bootloader to /mnt/boot?"
-  message+="\n\n"
-  message+="A bootloader is required to boot your new Arch Linux installation. "
-  message+="You can skip this now, but you'll have to set it up manually later."
-  message+="\n "
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --title " Boot loader " \
-    --no-cancel \
-    --colors \
-    --ok-label "Next" \
-    --menu "$message" \
-    15 $WIDTH_SM 4 \
-    "Install bootloader" "" \
-    "Skip" "" \
     3>&1 1>&2 2>&3
 }
 
