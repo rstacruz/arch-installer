@@ -3,6 +3,10 @@
 set -eo pipefail
 trap quit:no_message INT
 
+# -------------------------------------------------------------------------------
+# Configuration / main
+# -------------------------------------------------------------------------------
+
 # Default config / global state
 set_defaults() {
   # Defaults
@@ -29,14 +33,6 @@ set_defaults() {
   FS_FORMAT_ROOT=0
 
   INSTALLER_TITLE="${INSTALLER_TITLE:-Arch Linux Installer}"
-
-  # Dialog implementation to use.
-  DIALOG=${DIALOG:-dialog}
-  DIALOG_OPTS=( \
-    --no-collapse \
-    --backtitle "$INSTALLER_TITLE (press [Ctrl-C] to exit)" \
-    --title " $INSTALLER_TITLE " \
-  )
 
   INSTALL_GRUB=0
 
@@ -69,6 +65,7 @@ set_defaults() {
   SCRIPT_FILE="$HOME/arch_installer.sh"
 }
 
+# Set global constants
 set_constants() {
   # Where timezones are stored
   ZONES_PATH="/usr/share/zoneinfo"
@@ -89,7 +86,7 @@ set_constants() {
   EDITOR=${EDITOR:-nano}
 }
 
-# Start everything
+# The main entry point
 main() {
   set_defaults
   set_constants
@@ -134,9 +131,11 @@ main() {
 
   # Write the script, then show debriefing dialogs
   script:write
-  confirm:run
+  confirm:menu
 }
 
+# -------------------------------------------------------------------------------
+# Sanity checks
 # -------------------------------------------------------------------------------
 
 # Ensures that the system is booted in UEFI mode, and not
@@ -155,12 +154,14 @@ check:ensure_online() {
   fi
 }
 
+# Ensure that the installer is being ran inside archiso.
 check:ensure_hostname() {
   if [[ "$(hostname)" != "archiso" ]]; then
     quit:wrong_hostname
   fi
 }
 
+# Ensure that all necessary utilities are available.
 check:ensure_available_utils() {
   check:ensure_util util-linux mount
   check:ensure_util util-linux lsblk
@@ -169,6 +170,7 @@ check:ensure_available_utils() {
   check:ensure_util arch-install-scripts pacstrap
 }
 
+# Ensure that a given utility is available.
 check:ensure_util() {
   local pkg="$1"
   local exec="$2"
@@ -188,18 +190,20 @@ check:ensure_pacman() {
 check:ensure_valid_partitions() {
   disk="$1"
   if [[ "$SKIP_EXT4_CHECK" == 0 ]]; then
-    if ! util:disk_has_partition "$disk" "ext4"; then
+    if ! sys:disk_has_partition "$disk" "ext4"; then
       quit:no_ext4
     fi
   fi
 
   if [[ "$SKIP_VFAT_CHECK" == 0 ]]; then
-    if ! util:disk_has_partition "$disk" "vfat"; then
+    if ! sys:disk_has_partition "$disk" "vfat"; then
       quit:no_vfat
     fi
   fi
 }
 
+# Check if a disk is mounted. Don't install to it if it's mounted at
+# the moment.
 check:not_mounted() {
   if [[ "$SKIP_MOUNTED_CHECK" != 0 ]]; then return; fi
   local disk="$1"
@@ -243,7 +247,7 @@ config:system() {
 # Config: Show system dialog
 config:system_dialog() {
   message="\nYou can <Change> any of these settings. Move to the <Next> screen when you're done.\n "
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --title " Locales " \
     --no-cancel \
     --ok-label "Change" \
@@ -294,7 +298,7 @@ config:user() {
 # Config: user/password (dialog)
 config:user_dialog() {
   message="\nTell me about the user you're going to use day-to-day.\n "
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --title " Configure your user " \
     --no-cancel \
     --no-shadow \
@@ -328,7 +332,7 @@ config:recipes() {
 config:recipes_dialog() {
   body="Pick some other extras to install.\n"
   body+="Press [space] to select or deselect items."
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --separate-output \
     --no-cancel \
     --ok-label "OK" \
@@ -362,7 +366,7 @@ config:grub_dialog() {
   message+="A bootloader is required to boot your new Arch Linux installation. "
   message+="You can skip this now, but you'll have to set it up manually later."
   message+="\n "
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --title " Boot loader " \
     --no-cancel \
     --colors \
@@ -374,11 +378,9 @@ config:grub_dialog() {
     3>&1 1>&2 2>&3
 }
 
-# -------------------------------------------------------------------------------
-
 # Pick Linux partition ($FS_ROOT)
 config:pick_root_partition() {
-  choice="$(config:show_partition_dialog \
+  choice="$(config:show_partition_ui:dialog \
     --add "$ADD_NEW_TAG" "...Add a new partition" \
     "$FS_DISK" \
     "Linux partition" \
@@ -394,7 +396,7 @@ config:pick_root_partition() {
 config:pick_efi_partition() {
   body="Choose partition to install the EFI boot loader into:"
   subtext="This should be an EFI partition, typically a fat32."
-  choice="$(config:show_partition_dialog \
+  choice="$(config:show_partition_ui:dialog \
     --add "$ADD_NEW_TAG" "...Add a new partition" \
     --add "$NO_BOOTLOADER" "...Don't install a boot loader" \
     "$FS_DISK" \
@@ -416,7 +418,7 @@ config:show_disk_dialog() {
   while read -r line; do
     eval "$line"
     pairs+=("/dev/$NAME" "$SIZE")
-  done <<< "$(util:list_drives)"
+  done <<< "$(sys:list_drives)"
 
   local warning=
   local title="Which disk do you want to install Arch Linux into?"
@@ -428,7 +430,7 @@ config:show_disk_dialog() {
   fi
 
   # shellcheck disable=SC2086
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --title " Disks " \
     --no-cancel \
     --ok-label "Next" \
@@ -467,10 +469,10 @@ config:show_partition_dialog() {
     eval "$line"
     label="$(printf "[%8s]  %s - %s" "$SIZE" "$FSTYPE" "${LABEL:-No label}")"
     pairs+=("/dev/$NAME" "$label")
-  done <<< "$(util:list_partitions "$disk")"
+  done <<< "$(sys:list_partitions "$disk")"
 
   # shellcheck disable=SC2086
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --title " $title " \
     --no-cancel \
     --ok-label "Next" \
@@ -481,6 +483,8 @@ config:show_partition_dialog() {
     3>&1 1>&2 2>&3
 }
 
+# -------------------------------------------------------------------------------
+# "System config" step
 # -------------------------------------------------------------------------------
 
 # Returns (echoes) a timezone. `$1` currently-selected one.
@@ -504,7 +508,7 @@ system:choose_keyboard_layout() {
     echo uk
     echo dvorak
     echo colemak
-    util:list_keymaps
+    sys:list_keymaps
   ) | form:select \
     "Keyboard layout" \
     "$active"
@@ -515,11 +519,13 @@ system:choose_locale() {
   (
     echo "en_US.UTF-8 UTF-8"
     echo "en_GB.UTF-8 UTF-8"
-    util:list_locales
+    sys:list_locales
   ) | form:multi_select \
     "Locales"
 }
 
+# -------------------------------------------------------------------------------
+# "Disk strategy" step
 # -------------------------------------------------------------------------------
 
 # Configure disk strategy (partition, wipe, /mnt)
@@ -541,7 +547,7 @@ disk:config_strategy() {
       ;;
 
     Use\ /mnt*)
-      if ! util:is_mnt_mounted; then quit:mnt_not_mounted; fi
+      if ! sys:is_mnt_mounted; then quit:mnt_not_mounted; fi
       config:grub
       FS_USE_MNT=1
       FS_ROOT=""
@@ -560,10 +566,10 @@ disk:config_strategy() {
       # Pick other patitions
       config:pick_root_partition
       # TODO: format root
-      config:validate_root_partition
+      disk:validate_root_partition
 
       config:pick_efi_partition
-      config:format_efi_partition
+      disk:format_efi_partition
 
       # Check them if they can be mounted;
       # exit if they can't be mounted
@@ -580,7 +586,7 @@ disk:config_strategy() {
 disk:choose_strategy_dialog() {
   local title="How do you want to install Arch Linux on your drive?"
 
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --title " Disk strategy " \
     --no-cancel \
     --ok-label "Next" \
@@ -593,7 +599,44 @@ disk:choose_strategy_dialog() {
     3>&1 1>&2 2>&3
 }
 
-review:get_disk_strategy() {
+# "Review install strategy" dialog for /mnt
+disk:show_mnt_warning() {
+  message=""
+  message+="Please review the installation strategy:"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
+
+  message+="\n\n\Zb\Z2No disk operations\Zn\n"
+  message+="No partition tables will be edited. No partitions will be (re)formatted."
+
+  if [[ "$INSTALL_GRUB" == "0" ]]; then
+    message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
+    message+="You will need to install a boot loader yourself (eg, GRUB)."
+  else
+    message+="\n\n\Zb\Z2Install boot loader to /mnt/boot\Zn\n"
+    message+="The GRUB boot loader will be installed."
+  fi
+
+  message+="\n\n\Zb\Z2Install Arch Linux into /mnt\Zn\n"
+  message+="Arch Linux will be installed into whatever disk is mounted in \Zb/mnt\Zn at the moment."
+
+  message+="\n"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
+  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit."
+
+  ui:dialog \
+    --colors \
+    --title " Review " \
+    --ok-label "Next" \
+    --msgbox "$message" \
+    22 $WIDTH_MD \
+    3>&1 1>&2 2>&3
+
+  # shellcheck disable=SC2181
+  if [[ "$?" != "0" ]]; then quit:no_message; fi
+}
+
+# Print disk strategy message
+disk:get_disk_strategy() {
   message=""
   if [[ "$FS_DO_FDISK" == 1 ]]; then
     message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
@@ -606,21 +649,21 @@ review:get_disk_strategy() {
     message+="This new partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
   else
     if [[ "$FS_FORMAT_EFI" == 1 ]]; then
-      message+="\n\n\Zb\Z2Format the EFI partition, $(util:partition_info $FS_EFI)\Zn\n"
+      message+="\n\n\Zb\Z2Format the EFI partition, $(sys:partition_info $FS_EFI)\Zn\n"
       message+="This partition will be reformatted as \Vbfat32\Zn."
     fi
     if [[ "$INSTALL_GRUB" == 1 ]]; then
-      message+="\n\n\Zb\Z2Add boot loader to $(util:partition_info $FS_EFI)\Zn\n"
+      message+="\n\n\Zb\Z2Add boot loader to $(sys:partition_info $FS_EFI)\Zn\n"
       message+="A new GRUB boot loader entry will be added to \Zb$FS_EFI\Zn. It won't be reformatted. Any existing boot loaders will be left untouched."
     else
       message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
       message+="You will need to install a boot loader yourself (eg, GRUB)."
     fi
     if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
-      message+="\n\n\Zb\Z2Format the root partition, $(util:partition_info $FS_ROOT)\Zn\n"
+      message+="\n\n\Zb\Z2Format the root partition, $(sys:partition_info $FS_ROOT)\Zn\n"
       message+="This existing partition will be reformatted as \Zbext4\Zn."
     fi
-    message+="\n\n\Zb\Z2Install Arch Linux to $(util:partition_info $FS_ROOT)\Zn\n"
+    message+="\n\n\Zb\Z2Install Arch Linux to $(sys:partition_info $FS_ROOT)\Zn\n"
     message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
   fi
   # TODO: Warn if certain partition types are not supported
@@ -632,12 +675,12 @@ disk:confirm_strategy() {
   message=""
   message+="These operations will be done to your disk:"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-  message+="$(review:get_disk_strategy)"
+  message+="$(disk:get_disk_strategy)"
   message+="\n"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
   message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit. None of these operations will be done until the final step."
 
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --colors \
     --title " Review " \
     --ok-label "Next" \
@@ -649,6 +692,18 @@ disk:confirm_strategy() {
   if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
+disk:validate_root_partition() {
+  # TODO: if it's not ext4, exit and say we don't support it
+  true
+}
+
+disk:format_efi_partition() {
+  # TODO: ask the user if it should be formatted
+  true
+}
+
+# -------------------------------------------------------------------------------
+# Reusable form UI dialogs
 # -------------------------------------------------------------------------------
 
 # Dropdown
@@ -662,7 +717,7 @@ form:select() {
   done
 
   # shellcheck disable=SC2086
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --no-tags \
     --title " $title " \
     --default-item "$active" \
@@ -689,7 +744,7 @@ form:multi_select() {
   done
 
   # shellcheck disable=SC2086
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --no-tags \
     --separate-output \
     --title " $title " \
@@ -749,7 +804,7 @@ form:file_picker_dialog() {
   done
 
   # shellcheck disable=SC2086
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --no-tags \
     --title " $title " \
     --menu "$body" \
@@ -758,38 +813,12 @@ form:file_picker_dialog() {
     3>&1 1>&2 2>&3
 }
 
-# -------------------------------------------------------------------------------
-
-# List available keymaps
-util:list_keymaps() {
-  find /usr/share/kbd/keymaps -type f -exec basename '{}' '.map.gz' \; | sort
-}
-
-# List available locales
-util:list_locales() {
-  grep -e '^#[a-zA-Z]' /etc/locale.gen | sed 's/^#//g' | sed 's/ *$//g'
-}
-
-# Check if a disk has a given partition of given type
-#     if util:disk_has_partition /dev/sda1 ext4; then ...
-util:disk_has_partition() {
-  disk="$1"
-  fstype="$2"
-  lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
-    | grep 'TYPE="part"' \
-    | grep "$(basename "$disk")" \
-    | grep "FSTYPE=\"$fstype\"" \
-    &>/dev/null
-}
-
-# -------------------------------------------------------------------------------
-
 # Form helper
 form:text_input() {
   label="$1"
   value="$2"
   description="$3"
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --title "" \
     --no-cancel \
     --inputbox \
@@ -800,23 +829,15 @@ form:text_input() {
 }
 
 # -------------------------------------------------------------------------------
-
-config:validate_root_partition() {
-  # TODO: if it's not ext4, exit and say we don't support it
-  true
-}
-
-config:format_efi_partition() {
-  # TODO: ask the user if it should be formatted
-  true
-}
+# "Validate partition" step
+# -------------------------------------------------------------------------------
 
 # Inform the user why they'll be asked for a sudo password.
 # (When ran from the arch installer, there's no need to sudo,
 # so there's no need for this warning either.)
 validate_partition:show_warning() {
   clear
-  if ! util:is_root; then
+  if ! sys:am_i_root; then
     echo ""
     echo "Your partitions will be mounted now in read-only mode to check"
     echo "if they're already formatted."
@@ -862,13 +883,13 @@ validate_partition:check() {
   local mountpoint="/tmp/mount"
 
   # Mount it, save the result to check later
-  util:sudo "mkdir -p $mountpoint"
-  util:sudo "mount -o ro $dev $mountpoint"
+  sys:sudo "mkdir -p $mountpoint"
+  sys:sudo "mount -o ro $dev $mountpoint"
   result="$?"
 
   # Force-unmount it
-  util:sudo "umount $mountpoint" || true
-  util:sudo "rmdir $mountpoint"
+  sys:sudo "umount $mountpoint" || true
+  sys:sudo "rmdir $mountpoint"
 
   if [[ "$result" != "0" ]]; then
     return 1
@@ -876,11 +897,13 @@ validate_partition:check() {
 }
 
 # -------------------------------------------------------------------------------
+# Welcome step
+# -------------------------------------------------------------------------------
 
 # Show welcome message
 welcome:show_dialog() {
   message="
-$(utils:arch_logo)
+$(ui:arch_logo)
 
 Welcome to Arch Linux! Before we begin, let's go over a few things:
 
@@ -896,7 +919,7 @@ Welcome to Arch Linux! Before we begin, let's go over a few things:
 
   $INSTALLER_URL
   "
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --colors \
     --ok-label "Next" \
     --msgbox "$message" \
@@ -907,28 +930,21 @@ Welcome to Arch Linux! Before we begin, let's go over a few things:
 }
 
 # -------------------------------------------------------------------------------
+# "Final confirmation" step
+# -------------------------------------------------------------------------------
 
-# Confirmation step
-confirm:run() {
-  choice="$(confirm:show_confirm_dialog)"
+confirm:menu() {
+  choice="$(confirm:menu_dialog)"
   case "$choice" in
-    Install*) app:edit_script; app:run_script ;;
-    Review*) confirm:show_script_dialog; confirm:run ;;
-    Additional*) config:recipes; script:write; confirm:run ;;
+    Install*) confirm:edit_script; confirm:run_script ;;
+    Review*) confirm:review_script_dialog; confirm:menu ;;
+    Additional*) config:recipes; script:write; confirm:menu ;;
     *) quit:exit ;;
   esac
 }
 
-confirm:show_script_dialog() {
-  # "$EDITOR" "$SCRIPT_FILE"
-  # less "$SCRIPT_FILE"
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --title " $SCRIPT_FILE " \
-    --exit-label "Continue" \
-    --textbox "$SCRIPT_FILE" $(( LINES - 2 )) $WIDTH_LG
-}
-
-confirm:show_confirm_dialog() {
+# "Ready to install! What now?" dialog
+confirm:menu_dialog() {
   local message="\n"
   message+="Ready to install!\n"
   message+="An install script's been prepared for you. You can run it now by selecting \ZbInstall now\Zn.\n"
@@ -937,7 +953,7 @@ confirm:show_confirm_dialog() {
   local recipe_opts=("Additional options..." "")
   if [[ "$ENABLE_RECIPES" != 1 ]]; then recipe_opts=(); fi
   
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --title " Install now " \
     --no-cancel \
     --colors \
@@ -951,13 +967,22 @@ confirm:show_confirm_dialog() {
     3>&1 1>&2 2>&3
 }
 
-# -------------------------------------------------------------------------------
+# Show script in a dialog
+confirm:review_script_dialog() {
+  # "$EDITOR" "$SCRIPT_FILE"
+  # less "$SCRIPT_FILE"
+  ui:dialog \
+    --title " $SCRIPT_FILE " \
+    --exit-label "Continue" \
+    --textbox "$SCRIPT_FILE" $(( LINES - 2 )) $WIDTH_LG
+}
 
-app:edit_script() {
+# Show dialog to ask user if they want to edit the script.
+confirm:edit_script() {
   set +e
   body="Edit this install script before installing?"
 
-  $DIALOG "${DIALOG_OPTS[@]}" \
+  ui:dialog \
     --keep-window \
     --title " $SCRIPT_FILE " \
     --exit-label "Continue" \
@@ -978,8 +1003,8 @@ app:edit_script() {
   esac
 }
 
-# Run the script
-app:run_script() {
+# Run the script (finally!)
+confirm:run_script() {
   # Only proceed if we're root.
   if [[ $(id -u) != "0" ]]; then quit:exit; return; fi
 
@@ -989,6 +1014,8 @@ app:run_script() {
   bash "$SCRIPT_FILE"
 }
 
+# -------------------------------------------------------------------------------
+# Script writer
 # -------------------------------------------------------------------------------
 
 # Write script
@@ -1110,7 +1137,7 @@ script:write_pacstrap() {
       for locale in ${PRIMARY_LOCALE[*]}; do
         echo "  echo $(esc "$locale") >> /etc/locale.gen"
       done
-      echo "  echo LANG=$(esc "$(util:get_primary_locale)") > /etc/locale.conf"
+      echo "  echo LANG=$(esc "$(sys:get_primary_locale)") > /etc/locale.conf"
     )
     echo "  locale-gen"
     echo "END"
@@ -1338,6 +1365,8 @@ app:parse_options() {
   if [[ "$1" == '--' ]]; then shift; fi
 }
 
+# -------------------------------------------------------------------------------
+# Exit messages
 # -------------------------------------------------------------------------------
 
 # Quit and exit
@@ -1602,53 +1631,52 @@ quit:no_vfat() {
 }
 
 # -------------------------------------------------------------------------------
-
-disk:show_mnt_warning() {
-  message=""
-  message+="Please review the installation strategy:"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-
-  message+="\n\n\Zb\Z2No disk operations\Zn\n"
-  message+="No partition tables will be edited. No partitions will be (re)formatted."
-
-  if [[ "$INSTALL_GRUB" == "0" ]]; then
-    message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
-    message+="You will need to install a boot loader yourself (eg, GRUB)."
-  else
-    message+="\n\n\Zb\Z2Install boot loader to /mnt/boot\Zn\n"
-    message+="The GRUB boot loader will be installed."
-  fi
-
-  message+="\n\n\Zb\Z2Install Arch Linux into /mnt\Zn\n"
-  message+="Arch Linux will be installed into whatever disk is mounted in \Zb/mnt\Zn at the moment."
-
-  message+="\n"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit."
-
-  $DIALOG "${DIALOG_OPTS[@]}" \
-    --colors \
-    --title " Review " \
-    --ok-label "Next" \
-    --msgbox "$message" \
-    22 $WIDTH_MD \
-    3>&1 1>&2 2>&3
-
-  # shellcheck disable=SC2181
-  if [[ "$?" != "0" ]]; then quit:no_message; fi
-}
-
+# System utilities
 # -------------------------------------------------------------------------------
 
+# List available keymaps in the system.
+sys:list_keymaps() {
+  find /usr/share/kbd/keymaps -type f -exec basename '{}' '.map.gz' \; | sort
+}
+
+# List available locales in the system.
+sys:list_locales() {
+  grep -e '^#[a-zA-Z]' /etc/locale.gen | sed 's/^#//g' | sed 's/ *$//g'
+}
+
+# Check if a disk has a given partition of given type.
+#
+#     if sys:disk_has_partition /dev/sda1 ext4;
+#       echo "The disk has an ext4 partition."
+#     fi
+#
+sys:disk_has_partition() {
+  disk="$1"
+  fstype="$2"
+  lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
+    | grep 'TYPE="part"' \
+    | grep "$(basename "$disk")" \
+    | grep "FSTYPE=\"$fstype\"" \
+    &>/dev/null
+}
+
 # Return 0 if we're root, 1 otherwise
-util:is_root() {
+#
+#     if sys:am_i_root; then
+#       echo "I'm root"
+#     fi
+#
+sys:am_i_root() {
   [[ "$(id -u)" == "0" ]]
 }
 
 # Run something as a superuser
-util:sudo() {
+#
+#     sys:sudo cfdisk
+#
+sys:sudo() {
   local cmd="$1"
-  if util:is_root; then
+  if sys:am_i_root; then
     $cmd
   elif command -v sudo &>/dev/null; then
     # shellcheck disable=SC2086
@@ -1660,13 +1688,20 @@ util:sudo() {
 }
 
 # Dev helpers: List available drives
-util:list_drives() {
+#
+#     sys:list_drives
+#     # => NAME="sda" SIZE="883GB"
+sys:list_drives() {
   # NAME="sda" SIZE="883GB"
   lsblk -I 8 -o "NAME,SIZE" -P -d
 }
 
-# Dev helpers: List available partitions
-util:list_partitions() {
+# Dev helpers: List available partitions.
+#
+#     sys:list_partitions
+#     #=> NAME="sda1" SIZE="250GB" ...
+#
+sys:list_partitions() {
   disk="$1"
   # NAME="sda1" SIZE="883GB"
   lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
@@ -1674,20 +1709,36 @@ util:list_partitions() {
     | grep "$(basename "$disk")"
 }
 
-# "en_US.UTF-8 UTF-8" -> "en_US.UTF-8"
-util:get_primary_locale() {
+# Returns the prmary locale based on $PRIMARY_LOCALE.
+#
+#     echo $(sys:get_primary_locale)
+#     #=> "en_US.UTF-8"
+#
+sys:get_primary_locale() {
+  # "en_US.UTF-8 UTF-8" -> "en_US.UTF-8"
   local str="${PRIMARY_LOCALE[0]}"
   echo "${str% *}"
 }
 
-util:is_mnt_mounted() {
+# Checks if /mnt is mounted. Returns non-zero if not.
+#
+#     if sys:is_mnt_mounted; then
+#       echo "/mnt is available right now"
+#     fi
+#
+sys:is_mnt_mounted() {
   if [[ "$SKIP_MNT_CHECK" == 1 ]]; then return; fi
 
   # Grep returns non-zero if it's not found
   findmnt '/mnt' | grep '/mnt' &>/dev/null
 }
 
-util:partition_info() {
+# Gets partition info as a string.
+#
+#     echo $(sys:partition_info "/dev/sda1")
+#     #=> "/dev/sda1 (250G ext4)"
+#
+sys:partition_info() {
   local partition="$1"
   NAME=""
   eval "$(lsblk -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
@@ -1701,8 +1752,15 @@ util:partition_info() {
   fi
 }
 
-# Random utils
-utils:arch_logo() {
+# -------------------------------------------------------------------------------
+# UI utilities
+# -------------------------------------------------------------------------------
+
+# Prints Arch Linux banner
+#
+#     echo "$(ui:arch_logo)"
+#
+ui:arch_logo() {
   echo "
             .
            /#\\
@@ -1715,7 +1773,23 @@ utils:arch_logo() {
   "
 }
 
+# Dialog shim
+#
+#    ui:dialog --yesno "Work?" 4 40
+#
+ui:dialog() {
+  command dialog \
+    --no-collapse \
+    --backtitle "$INSTALLER_TITLE (press [Ctrl-C] to exit)" \
+    --title " $INSTALLER_TITLE " \
+    "$@"
+}
+
 # Escape text
+#
+#     echo "$(esc "hello world")"
+#     #=> hello\ world
+#
 esc() {
   printf "%q" "$1"
 }
