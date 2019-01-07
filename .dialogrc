@@ -1,0 +1,43 @@
+aspect = 0
+separate_widget = ""
+tab_len = 0
+visit_items = OFF
+use_shadow = OFF
+use_colors = ON
+
+# Primary colors
+border_color = (green,black,off)
+dialog_color = (white,black,off)
+title_color = (green,black,on)
+button_active_color = (white,green,on)
+
+# Reusables
+screen_color = border_color
+button_inactive_color = dialog_color
+button_key_inactive_color = dialog_color
+button_label_inactive_color = dialog_color
+button_key_active_color = button_active_color
+button_label_active_color = button_active_color
+tag_key_selected_color = button_active_color
+item_selected_color = tag_key_selected_color
+inputbox_color = dialog_color
+inputbox_border_color = dialog_color
+searchbox_color = dialog_color
+searchbox_title_color = title_color
+searchbox_border_color = border_color
+position_indicator_color = title_color
+menubox_color = dialog_color
+menubox_border_color = border_color
+item_color = dialog_color
+tag_color = title_color
+tag_selected_color = button_label_active_color
+tag_key_color = button_key_inactive_color
+check_color = dialog_color
+check_selected_color = button_active_color
+uarrow_color = screen_color
+darrow_color = screen_color
+form_active_text_color = button_active_color
+gauge_color = title_color
+border2_color = border_color
+searchbox_border2_color = border_color
+menubox_border2_color = border_color
