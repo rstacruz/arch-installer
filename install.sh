@@ -6,13 +6,13 @@ trap quit:no_message INT
 # Default config / global state
 set_defaults() {
   # Defaults
-  KEYBOARD_LAYOUT=${KEYBOARD_LAYOUT:-us}
+  KEYBOARD_LAYOUT="${KEYBOARD_LAYOUT:-us}"
   PRIMARY_LOCALE="en_US.UTF-8 UTF-8"
   TIMEZONE="${TIMEZONE}"
 
-  SYSTEM_HOSTNAME="arch-pc"
-  PRIMARY_USERNAME="anon"
-  PRIMARY_PASSWORD="1234"
+  SYSTEM_HOSTNAME="${SYSTEM_HOSTNAME:-arch-pc}"
+  PRIMARY_USERNAME="${PRIMARY_USERNAME:-anon}"
+  PRIMARY_PASSWORD="${PRIMARY_PASSWORD:-1234}"
 
   FS_DISK="/dev/sda"
   FS_ROOT="$FS_DISK""2"
@@ -28,7 +28,7 @@ set_defaults() {
   FS_FORMAT_EFI=0
   FS_FORMAT_ROOT=0
 
-  INSTALLER_TITLE="Arch Linux Installer"
+  INSTALLER_TITLE="${INSTALLER_TITLE:-Arch Linux Installer}"
 
   # Dialog implementation to use.
   DIALOG=${DIALOG:-dialog}
@@ -55,15 +55,15 @@ set_defaults() {
   WIDTH_MD=72
 
   # Skip flags
-  SKIP_ARCHISO_CHECK=0
-  SKIP_EXT4_CHECK=0
-  SKIP_MNT_CHECK=0
-  SKIP_MOUNTED_CHECK=0
-  SKIP_PARTITION_MOUNT_CHECK=0
-  SKIP_SANITY_CHECK=0
-  SKIP_VFAT_CHECK=0
-  SKIP_WELCOME=0
-  ENABLE_RECIPES=1
+  SKIP_ARCHISO_CHECK="${SKIP_ARCHISO_CHECK:-0}"
+  SKIP_EXT4_CHECK="${SKIP_EXT4_CHECK:-0}"
+  SKIP_MNT_CHECK="${SKIP_MNT_CHECK:-0}"
+  SKIP_MOUNTED_CHECK="${SKIP_MOUNTED_CHECK:-0}"
+  SKIP_PARTITION_MOUNT_CHECK="${SKIP_PARTITION_MOUNT_CHECK:-0}"
+  SKIP_SANITY_CHECK="${SKIP_SANITY_CHECK:-0}"
+  SKIP_VFAT_CHECK="${SKIP_VFAT_CHECK:-0}"
+  SKIP_WELCOME="${SKIP_WELCOME:-0}"
+  ENABLE_RECIPES="${ENABLE_RECIPES:-1}"
 
   # Where to write the script
   SCRIPT_FILE="$HOME/arch_installer.sh"
@@ -91,6 +91,9 @@ set_constants() {
 
 # Start everything
 main() {
+  set_defaults
+  set_constants
+
   app:infer_defaults
   app:parse_options "$@"
 
@@ -366,8 +369,8 @@ config:grub_dialog() {
     --ok-label "Next" \
     --menu "$message" \
     15 $WIDTH_SM 4 \
-    "Install bootloader" "" \
-    "Skip" "" \
+    "Install bootloader" "Yes, install GRUB." \
+    "Skip" "I'll install it manually later." \
     3>&1 1>&2 2>&3
 }
 
@@ -1720,6 +1723,6 @@ esc() {
 # -------------------------------------------------------------------------------
 
 # Lets go!
-set_defaults
-set_constants
-main "$@"
+if [[ "$BASH_ENV" != "test" ]]; then
+  main "$@"
+fi
