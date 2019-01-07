@@ -4,7 +4,7 @@ set -eo pipefail
 trap quit:no_message INT
 
 # -------------------------------------------------------------------------------
-# Configuration / main
+# [main] Configuration / main {
 # -------------------------------------------------------------------------------
 
 # Default config / global state
@@ -134,8 +134,9 @@ main() {
   confirm:menu
 }
 
+# }
 # -------------------------------------------------------------------------------
-# Sanity checks
+# [check:] Sanity checks {
 # -------------------------------------------------------------------------------
 
 # Ensures that the system is booted in UEFI mode, and not
@@ -212,6 +213,9 @@ check:not_mounted() {
   fi
 }
 
+# }
+# -------------------------------------------------------------------------------
+# [config:] Config dialogs (?) {
 # -------------------------------------------------------------------------------
 
 # Configure keyboard layout, timezone, locale
@@ -483,8 +487,9 @@ config:show_partition_dialog() {
     3>&1 1>&2 2>&3
 }
 
+# }
 # -------------------------------------------------------------------------------
-# "System config" step
+# [system:] "System config" step {
 # -------------------------------------------------------------------------------
 
 # Returns (echoes) a timezone. `$1` currently-selected one.
@@ -524,8 +529,9 @@ system:choose_locale() {
     "Locales"
 }
 
+# }
 # -------------------------------------------------------------------------------
-# "Disk strategy" step
+# [disk:] "Disk strategy" step {
 # -------------------------------------------------------------------------------
 
 # Configure disk strategy (partition, wipe, /mnt)
@@ -702,8 +708,9 @@ disk:format_efi_partition() {
   true
 }
 
+# }
 # -------------------------------------------------------------------------------
-# Reusable form UI dialogs
+# [form:] Reusable form UI dialogs {
 # -------------------------------------------------------------------------------
 
 # Dropdown
@@ -828,8 +835,9 @@ form:text_input() {
     3>&1 1>&2 2>&3
 }
 
+# }
 # -------------------------------------------------------------------------------
-# "Validate partition" step
+# [validate_partition:] "Validate partition" step {
 # -------------------------------------------------------------------------------
 
 # Inform the user why they'll be asked for a sudo password.
@@ -896,8 +904,9 @@ validate_partition:check() {
   fi
 }
 
+# }
 # -------------------------------------------------------------------------------
-# Welcome step
+# [welcome:] Welcome step {
 # -------------------------------------------------------------------------------
 
 # Show welcome message
@@ -929,10 +938,12 @@ Welcome to Arch Linux! Before we begin, let's go over a few things:
   if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
+# }
 # -------------------------------------------------------------------------------
-# "Final confirmation" step
+# [confirm:] "Final confirmation" step {
 # -------------------------------------------------------------------------------
 
+# Show the "Install / review / additional / exit" menu at the end.
 confirm:menu() {
   choice="$(confirm:menu_dialog)"
   case "$choice" in
@@ -1014,8 +1025,9 @@ confirm:run_script() {
   bash "$SCRIPT_FILE"
 }
 
+# }
 # -------------------------------------------------------------------------------
-# Script writer
+# [script:] Script writer {
 # -------------------------------------------------------------------------------
 
 # Write script
@@ -1226,6 +1238,9 @@ script:write_end() {
   ) >> "$SCRIPT_FILE"
 }
 
+# }
+# -------------------------------------------------------------------------------
+# [recipes:] Recipes {
 # -------------------------------------------------------------------------------
 
 # Recipe for setting up grub
@@ -1308,6 +1323,9 @@ recipes:install_systemd_swap() {
   echo "END"
 }
 
+# }
+# -------------------------------------------------------------------------------
+# [app:] {
 # -------------------------------------------------------------------------------
 
 # Infer some default values
@@ -1365,8 +1383,9 @@ app:parse_options() {
   if [[ "$1" == '--' ]]; then shift; fi
 }
 
+# }
 # -------------------------------------------------------------------------------
-# Exit messages
+# [quit:] Exit messages {
 # -------------------------------------------------------------------------------
 
 # Quit and exit
@@ -1630,8 +1649,9 @@ quit:no_vfat() {
   exit 1
 }
 
+# }
 # -------------------------------------------------------------------------------
-# System utilities
+# [sys:] System utilities {
 # -------------------------------------------------------------------------------
 
 # List available keymaps in the system.
@@ -1752,8 +1772,9 @@ sys:partition_info() {
   fi
 }
 
+# }
 # -------------------------------------------------------------------------------
-# UI utilities
+# [ui:] UI utilities {
 # -------------------------------------------------------------------------------
 
 # Prints Arch Linux banner
@@ -1794,9 +1815,7 @@ esc() {
   printf "%q" "$1"
 }
 
+# }
 # -------------------------------------------------------------------------------
 
-# Lets go!
-if [[ "$BASH_ENV" != "test" ]]; then
-  main "$@"
-fi
+if [[ "$BASH_ENV" != "test" ]]; then main "$@"; fi
