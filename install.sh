@@ -1654,6 +1654,12 @@ quit:no_vfat() {
 # [sys:] System utilities {
 # -------------------------------------------------------------------------------
 
+# Check if a disk is gpt
+sys:is_disk_gpt() {
+  disk="$1" # eg, "/dev/sda"
+  lsblk -P -o 'PATH,PTTYPE' | grep "$disk" | grep 'PTTYPE="gpt"' &>/dev/null
+}
+
 # List available keymaps in the system.
 sys:list_keymaps() {
   find /usr/share/kbd/keymaps -type f -exec basename '{}' '.map.gz' \; | sort
