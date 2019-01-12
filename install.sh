@@ -247,9 +247,9 @@ config:system_dialog() {
     --extra-label "Next" \
     --menu "$message" \
     14 $WIDTH_SM 3 \
-    "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     "Time zone" "[$TIMEZONE]" \
     "Locales" "[$(echo "${PRIMARY_LOCALE}" | xargs echo)]" \
+    "Keyboard layout" "[$KEYBOARD_LAYOUT]" \
     3>&1 1>&2 2>&3
 }
 
