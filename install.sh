@@ -113,11 +113,7 @@ main() {
   disk:ensure_valid
 
   # Show disk confirmation
-  if [[ "$MODE_USE_MNT" == 1 ]]; then
-    disk_confirm:confirm_mnt
-  else
-    disk_confirm:confirm
-  fi
+  disk_confirm:confirm
 
   # Configure locales and such
   config:system
@@ -481,13 +477,14 @@ disk:config_strategy() {
       # Are the required partitions available?
       check:ensure_valid_partitions "$FS_DISK"
 
-      # TODO: auto-find efi partition
+      # Auto-find efi partition
+      partitions:auto_find_efi
 
       # Pick other patitions
       partitions:pick_root
       partitions:validate_root
 
-      # partitions:pick_efi - deprecate this!
+      # TODO: Ask if we are going to FS_FORMAT_ROOT="1"
 
       # Check them if they can be mounted;
       # exit if they can't be mounted
@@ -531,6 +528,20 @@ disk:format_efi_partition() {
 
 # }
 # [partitions:] "Disk strategy" -> "Choose partitions" {
+
+# Set 'FS_EFI'
+partitions:auto_find_efi() {
+  local partition=$(sys:get_efi_partition "$FS_DISK")
+
+  if [[ -z "$partition" ]]; then
+    quit:no_efi_partition_found
+  fi
+
+  # TODO show partition somehow?
+  ui:dialog --msgbox "EFI partition is $partition" 8 40
+
+  FS_EFI="$partition"
+}
 
 # Pick Linux partition ($FS_ROOT)
 partitions:pick_root() {
@@ -617,50 +628,14 @@ partitions:pick_partition_dialog() {
 # }
 # [disk_confirm:] Disk confirmation {
 
-# "Review install strategy" dialog for /mnt
-disk_confirm:confirm_mnt() {
-  message=""
-  message+="Please review the installation strategy:"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-
-  message+="\n\n\Zb\Z2No disk operations\Zn\n"
-  message+="No partition tables will be edited. No partitions will be (re)formatted."
-
-  if [[ "$INSTALL_GRUB" == "0" ]]; then
-    message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
-    message+="You will need to install a boot loader yourself (eg, GRUB)."
-  else
-    message+="\n\n\Zb\Z2Install boot loader to /mnt/boot\Zn\n"
-    message+="The GRUB boot loader will be installed."
-  fi
-
-  message+="\n\n\Zb\Z2Install Arch Linux into /mnt\Zn\n"
-  message+="Arch Linux will be installed into whatever disk is mounted in \Zb/mnt\Zn at the moment."
-
-  message+="\n"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit."
-
-  ui:dialog \
-    --colors \
-    --title " Review " \
-    --ok-label "Next" \
-    --msgbox "$message" \
-    22 $WIDTH_MD \
-    3>&1 1>&2 2>&3
-
-  # shellcheck disable=SC2181
-  if [[ "$?" != "0" ]]; then quit:no_message; fi
-}
-
 # Show the user what's about to happen
 disk_confirm:confirm() {
   message=""
-  message+="These operations will be done to your disk:"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
+  message+="These operations will be done:"
+  message+="\n\Zb───────────────────────────────────────────────────────────────────\Zn"
   message+="$(disk_confirm:get_strategy)"
   message+="\n"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
+  message+="\n\Zb───────────────────────────────────────────────────────────────────\Zn"
   message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit. None of these operations will be done until the final step."
 
   ui:dialog \
@@ -678,35 +653,54 @@ disk_confirm:confirm() {
 # Print disk strategy message
 disk_confirm:get_strategy() {
   message=""
-  if [[ "$MODE_FULL_WIPE" == 1 ]]; then
-    message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
-    message+="The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \ZbAll of its data will be erased.\Zn"
 
-    message+="\n\n\Zb\Z2Create new EFI partition ($FS_EFI)\Zn\n"
+  if [[ "$MODE_USE_MNT" == 1 ]]; then
+    message+="\n\n\ZbNo disk operations\Zn\n"
+    message+="No partition tables will be edited. No partitions will be (re)formatted."
+
+    if [[ "$INSTALL_GRUB" == "0" ]]; then
+      message+="\n\n\ZbNo boot loader will be installed\Zn\n"
+      message+="You will need to install a boot loader yourself (eg, GRUB)."
+    else
+      message+="\n\n\ZbInstall boot loader to /mnt/boot\Zn\n"
+      message+="The GRUB boot loader will be installed."
+    fi
+
+    message+="\n\n\Zb\Z2Install Arch Linux into /mnt\Zn\n"
+    message+="Arch Linux will be installed into whatever disk is mounted in \Zb/mnt\Zn at the moment."
+  fi
+
+  if [[ "$MODE_FULL_WIPE" == 1 ]]; then
+    message+="\n\n\ZbWipe $FS_DISK\Zn\n"
+    message+="The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \Z1All of its data will be erased.\Zn"
+
+    message+="\n\n\ZbCreate new EFI partition\Zn ($FS_EFI)\n"
     message+="This partition will be reformatted, and a new boot loader be put in its place."
 
-    message+="\n\n\Zb\Z2Create new Arch Linux partition ($FS_ROOT)\Zn\n"
+    message+="\n\n\ZbCreate new Arch Linux partition\Zn ($FS_ROOT)\n"
     message+="This new partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
-  else
+  fi
+
+  if [[ "$MODE_USE_PARTITIONS" == 1 ]]; then
     if [[ "$FS_FORMAT_EFI" == 1 ]]; then
-      message+="\n\n\Zb\Z2Format the EFI partition, $(sys:partition_info $FS_EFI)\Zn\n"
+      message+="\n\n\ZbFormat the EFI partition\Zn $(sys:partition_info $FS_EFI)\n"
       message+="This partition will be reformatted as \Vbfat32\Zn."
     fi
     if [[ "$INSTALL_GRUB" == 1 ]]; then
-      message+="\n\n\Zb\Z2Add boot loader to $(sys:partition_info $FS_EFI)\Zn\n"
+      message+="\n\n\ZbAdd boot loader to\Zn $(sys:partition_info $FS_EFI)\n"
       message+="A new GRUB boot loader entry will be added to \Zb$FS_EFI\Zn. It won't be reformatted. Any existing boot loaders will be left untouched."
     else
-      message+="\n\n\Zb\Z2No boot loader will be installed\Zn\n"
+      message+="\n\n\ZbNo boot loader will be installed\Zn\n"
       message+="You will need to install a boot loader yourself (eg, GRUB)."
     fi
     if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
-      message+="\n\n\Zb\Z2Format the root partition, $(sys:partition_info $FS_ROOT)\Zn\n"
+      message+="\n\n\ZbFormat the root partition,\Zn $(sys:partition_info $FS_ROOT)\n"
       message+="This existing partition will be reformatted as \Zbext4\Zn."
     fi
-    message+="\n\n\Zb\Z2Install Arch Linux to $(sys:partition_info $FS_ROOT)\Zn\n"
+    message+="\n\n\ZbInstall Arch Linux to\Zn $(sys:partition_info $FS_ROOT)\n"
     message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
   fi
-  # TODO: Warn if certain partition types are not supported
+
   echo "$message"
 }
 
@@ -1404,6 +1398,14 @@ quit:exit_msg() {
   exit 1
 }
 
+quit:no_efi_partition_found() {
+  local disk="$1"
+  quit:exit_msg <<END
+  No EFI partition found.
+END
+# TODO: write more here
+}
+
 quit:disk_is_mounted() {
   local disk="$1"
   quit:exit_msg <<END
@@ -1642,6 +1644,16 @@ quit:no_vfat() {
 sys:is_disk_gpt() {
   disk="$1" # eg, "/dev/sda"
   lsblk -P -o 'PATH,PTTYPE' | grep "$disk" | grep 'PTTYPE="gpt"' &>/dev/null
+}
+
+# Get the EFI partition in a given disk.
+sys:get_efi_partition() {
+  local disk="$1" # /dev/sda
+  lsblk -P -o 'PATH,PARTLABEL' \
+    | grep 'PARTLABEL="EFI System Partition"' \
+    | grep "$disk" \
+    | head -n 1 \
+    | cut -d'"' -f 2
 }
 
 # List available keymaps in the system.
