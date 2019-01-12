@@ -353,7 +353,7 @@ config:grub() {
 config:grub_dialog() {
   message=""
   message+="\n"
-  message+="Install GRUB bootloader to /mnt/boot?"
+  message+="Install GRUB bootloader to \Zb/mnt/boot\Zn?"
   message+="\n\n"
   message+="A bootloader is required to boot your new Arch Linux installation. "
   message+="You can skip this now, but you'll have to set it up manually later."
@@ -463,6 +463,7 @@ disk:config_strategy() {
 
     Use\ /mnt*) # Use /mnt (MODE_USE_MNT)
       if ! sys:is_mnt_mounted; then quit:mnt_not_mounted; fi
+      # Ask if we are going to install grub (INSTALL_GRUB)
       config:grub
       MODE_USE_MNT=1
       FS_ROOT=""
@@ -479,15 +480,12 @@ disk:config_strategy() {
       # Are the required partitions available?
       check:ensure_valid_partitions "$FS_DISK"
 
-      # Auto-find efi partition; sets FS_EFI
+      # Auto-find efi partition (FS_EFI)
       partitions:auto_find_efi
 
-      # Pick other patitions
+      # Pick root partition (FS_ROOT)
       partitions:pick_root
       partitions:validate_root
-
-      # TODO: Ask if we are going to INSTALL_GRUB=1
-      INSTALL_GRUB=1
 
       # Check them if they can be mounted;
       # exit if they can't be mounted
@@ -496,6 +494,9 @@ disk:config_strategy() {
         validate_partition:efi
         validate_partition:root
       fi
+
+      # Ask if we are going to install grub (INSTALL_GRUB)
+      config:grub
       ;;
   esac
 }
@@ -649,7 +650,7 @@ partitions:pick_partition_dialog() {
 disk_confirm:msg() {
   local heading="$1"
   local body="$2"
-  echo -n "\n\n\Z4$heading\Zn\n"
+  echo -n "\n\n── \Z4$heading\Zn\n"
   echo -n "$body"
 }
 
