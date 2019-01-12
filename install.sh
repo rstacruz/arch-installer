@@ -299,9 +299,9 @@ config:user_dialog() {
     --extra-label "Next" \
     --menu "$message"\
     13 $WIDTH_SM 3 \
-    "System hostname" "[$SYSTEM_HOSTNAME]" \
     "Your username" "[$PRIMARY_USERNAME]" \
     "Your password" "[$PRIMARY_PASSWORD]" \
+    "System hostname" "[$SYSTEM_HOSTNAME]" \
     3>&1 1>&2 2>&3
 }
 
