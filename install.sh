@@ -113,7 +113,7 @@ main() {
   disk:ensure_valid
 
   # Show disk confirmation
-  disk_confirm:confirm
+  # disk_confirm:confirm
 
   # Configure locales and such
   config:system
@@ -484,7 +484,11 @@ disk:config_strategy() {
       partitions:pick_root
       partitions:validate_root
 
-      # TODO: Ask if we are going to FS_FORMAT_ROOT="1"
+      # Always format root when done this way
+      FS_FORMAT_ROOT=1
+
+      # TODO: Ask if we are going to INSTALL_GRUB=1
+      INSTALL_GRUB=1
 
       # Check them if they can be mounted;
       # exit if they can't be mounted
@@ -521,11 +525,6 @@ disk:ensure_valid() {
   fi
 }
 
-disk:format_efi_partition() {
-  # TODO: ask the user if it should be formatted
-  true
-}
-
 # }
 # [partitions:] "Disk strategy" -> "Choose partitions" {
 
@@ -537,7 +536,7 @@ partitions:auto_find_efi() {
     quit:no_efi_partition_found
   fi
 
-  # TODO show partition somehow?
+  # TODO: notify the user in a prettier way
   ui:dialog --msgbox "EFI partition is $partition" 8 40
 
   FS_EFI="$partition"
@@ -629,25 +628,30 @@ partitions:pick_partition_dialog() {
 # [disk_confirm:] Disk confirmation {
 
 # Show the user what's about to happen
-disk_confirm:confirm() {
-  message=""
-  message+="These operations will be done:"
-  message+="\n\Zb───────────────────────────────────────────────────────────────────\Zn"
-  message+="$(disk_confirm:get_strategy)"
-  message+="\n"
-  message+="\n\Zb───────────────────────────────────────────────────────────────────\Zn"
-  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit. None of these operations will be done until the final step."
+# disk_confirm:confirm() {
+#   message=""
+#   message+="Please review these operations that will be done, "
+#   message+="or press \ZbCtrl-C\Zn to abort. (None of these will be done until the final step.)"
+#   message+="$(disk_confirm:get_strategy)"
+#   message+="\n"
 
-  ui:dialog \
-    --colors \
-    --title " Review " \
-    --ok-label "Next" \
-    --msgbox "$message" \
-    23 $WIDTH_MD \
-    3>&1 1>&2 2>&3
+#   ui:dialog \
+#     --colors \
+#     --title " Review " \
+#     --ok-label "Next" \
+#     --msgbox "$message" \
+#     23 $WIDTH_MD \
+#     3>&1 1>&2 2>&3
 
-  # shellcheck disable=SC2181
-  if [[ "$?" != "0" ]]; then quit:no_message; fi
+#   # shellcheck disable=SC2181
+#   if [[ "$?" != "0" ]]; then quit:no_message; fi
+# }
+
+disk_confirm:msg() {
+  local heading="$1"
+  local body="$2"
+  echo -n "\n\n\Z4$heading\Zn\n"
+  echo -n "$body"
 }
 
 # Print disk strategy message
@@ -655,50 +659,67 @@ disk_confirm:get_strategy() {
   message=""
 
   if [[ "$MODE_USE_MNT" == 1 ]]; then
-    message+="\n\n\ZbNo disk operations\Zn\n"
-    message+="No partition tables will be edited. No partitions will be (re)formatted."
+    disk_confirm:msg \
+      "Install mode: Install Arch Linux to \Zb/mnt" \
+      "Arch Linux will be installed into whatever disks are mounted in \Zb/mnt\Zn at the moment."
+
+    disk_confirm:msg \
+      "No disk operations" \
+      "No partition tables will be changed; no partitions will be formatted."
 
     if [[ "$INSTALL_GRUB" == "0" ]]; then
-      message+="\n\n\ZbNo boot loader will be installed\Zn\n"
-      message+="You will need to install a boot loader yourself (eg, GRUB)."
+      disk_confirm:msg \
+        "No boot loader will be installed" \
+        "You will need to install a boot loader yourself (eg, GRUB). \Z1(!)\Zn"
     else
-      message+="\n\n\ZbInstall boot loader to /mnt/boot\Zn\n"
-      message+="The GRUB boot loader will be installed."
+      disk_confirm:msg \
+        "Install boot loader to \Zb/mnt/boot" \
+        "The GRUB boot loader will be installed."
     fi
-
-    message+="\n\n\Zb\Z2Install Arch Linux into /mnt\Zn\n"
-    message+="Arch Linux will be installed into whatever disk is mounted in \Zb/mnt\Zn at the moment."
   fi
 
   if [[ "$MODE_FULL_WIPE" == 1 ]]; then
-    message+="\n\n\ZbWipe $FS_DISK\Zn\n"
-    message+="The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \Z1All of its data will be erased.\Zn"
+    disk_confirm:msg \
+      "Install mode: Full wipe\Zb $FS_DISK" \
+      "The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \Z1All of its data will be erased.\Zn"
 
-    message+="\n\n\ZbCreate new EFI partition\Zn ($FS_EFI)\n"
-    message+="This partition will be reformatted, and a new boot loader be put in its place."
+    disk_confirm:msg \
+      "Create new EFI partition\Zb $FS_EFI" \
+      "This partition will be reformatted, and a new boot loader be put in its place."
 
-    message+="\n\n\ZbCreate new Arch Linux partition\Zn ($FS_ROOT)\n"
-    message+="This new partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
+    disk_confirm:msg \
+      "Create new Arch Linux partition\Zb $FS_ROOT" \
+      "This new partition will be reformatted as \Zbext4\Zn, and Arch Linux will be installed here."
   fi
 
   if [[ "$MODE_USE_PARTITIONS" == 1 ]]; then
+    disk_confirm:msg \
+      "Install mode: Manual partitions" \
+      "You picked partitions manually."
+
     if [[ "$FS_FORMAT_EFI" == 1 ]]; then
-      message+="\n\n\ZbFormat the EFI partition\Zn $(sys:partition_info $FS_EFI)\n"
-      message+="This partition will be reformatted as \Vbfat32\Zn."
+      disk_confirm:msg \
+        "Format the EFI partition\Zb $(sys:partition_info "$FS_EFI")" \
+        "This partition will be reformatted as \Vbfat32\Zn."
     fi
     if [[ "$INSTALL_GRUB" == 1 ]]; then
-      message+="\n\n\ZbAdd boot loader to\Zn $(sys:partition_info $FS_EFI)\n"
-      message+="A new GRUB boot loader entry will be added to \Zb$FS_EFI\Zn. It won't be reformatted. Any existing boot loaders will be left untouched."
+      disk_confirm:msg \
+        "Add boot loader to\Zb $(sys:partition_info "$FS_EFI")" \
+        "A new GRUB boot loader entry will be added to \Zb$FS_EFI\Zn."
     else
-      message+="\n\n\ZbNo boot loader will be installed\Zn\n"
-      message+="You will need to install a boot loader yourself (eg, GRUB)."
+      disk_confirm:msg \
+        "No boot loader will be installed" \
+        "You will need to install a boot loader yourself (eg, GRUB)."
     fi
     if [[ "$FS_FORMAT_ROOT" == 1 ]]; then
-      message+="\n\n\ZbFormat the root partition,\Zn $(sys:partition_info $FS_ROOT)\n"
-      message+="This existing partition will be reformatted as \Zbext4\Zn."
+      disk_confirm:msg \
+        "Format the root partition\Zb $(sys:partition_info "$FS_ROOT")" \
+        "This existing partition will be reformatted as \Zbext4\Zn."
     fi
-    message+="\n\n\ZbInstall Arch Linux to\Zn $(sys:partition_info $FS_ROOT)\n"
-    message+="Arch Linux will be installed into this existing partition. It won't be reformatted."
+
+    disk_confirm:msg \
+      "Install Arch Linux to\Zb $FS_ROOT" \
+      "Arch Linux will be installed into this existing partition."
   fi
 
   echo "$message"
@@ -945,9 +966,10 @@ confirm:menu() {
 # "Ready to install! What now?" dialog
 confirm:menu_dialog() {
   local message="\n"
-  message+="Ready to install!\n"
-  message+="An install script's been prepared for you. You can run it now by selecting \ZbInstall now\Zn.\n"
-  message+=" "
+  message+="Ready to install!"
+  message+="$(disk_confirm:get_strategy)"
+  message+="\n\nAn install script's been prepared for you. You can run it now by selecting \ZbInstall now\Zn."
+  message+="\n "
 
   local recipe_opts=("Additional options..." "")
   if [[ "$ENABLE_RECIPES" != 1 ]]; then recipe_opts=(); fi
@@ -958,7 +980,7 @@ confirm:menu_dialog() {
     --colors \
     --ok-label "Go!" \
     --menu "$message" \
-    17 $WIDTH_SM 4 \
+    30 $WIDTH_MD 4 \
     "Install now" "" \
     "Review script" "" \
     "${recipe_opts[@]}" \
@@ -1399,7 +1421,6 @@ quit:exit_msg() {
 }
 
 quit:no_efi_partition_found() {
-  local disk="$1"
   quit:exit_msg <<END
   No EFI partition found.
 END
