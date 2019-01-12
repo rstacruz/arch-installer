@@ -19,24 +19,23 @@ set_defaults() {
   PRIMARY_PASSWORD="${PRIMARY_PASSWORD:-1234}"
 
   FS_DISK="/dev/sda"
-  FS_ROOT="$FS_DISK""2"
-  FS_EFI="$FS_DISK""1"
+  FS_ROOT=""
+  FS_EFI=""
 
-  # If this is 1, don't mount stuff, just use /mnt as is.
-  FS_USE_MNT=0
-
-  # Wipe the disk?
-  FS_DO_FDISK=0
+  # Disk mode
+  MODE_USE_MNT=0
+  MODE_FULL_WIPE=0
+  MODE_USE_PARTITIONS=0
 
   # Format the ESP partition?
   FS_FORMAT_EFI=0
   FS_FORMAT_ROOT=0
 
+  # Title to show at the top of the installer
   INSTALLER_TITLE="${INSTALLER_TITLE:-Arch Linux Installer}"
 
-  INSTALL_GRUB=0
-
   # Recipes
+  INSTALL_GRUB=0
   INSTALL_YAY=0
   INSTALL_SYSTEMD_SWAP=0
   INSTALL_NETWORK_MANAGER=0
@@ -113,11 +112,11 @@ main() {
   disk:config_strategy
 
   # (FS_ROOT will be blank if /mnt is to be used.)
-  if [[ "$FS_USE_MNT" == "0" ]] && [[ "$FS_ROOT" == "$FS_EFI" ]]; then
+  if [[ "$MODE_USE_MNT" == "0" ]] && [[ "$FS_ROOT" == "$FS_EFI" ]]; then
     quit:invalid_partition_selection
   fi
 
-  if [[ "$FS_USE_MNT" == 1 ]]; then
+  if [[ "$MODE_USE_MNT" == 1 ]]; then
     disk:show_mnt_warning
   else
     disk:confirm_strategy
@@ -542,26 +541,29 @@ disk:config_strategy() {
       quit:cfdisk
       ;;
 
-    Wipe*)
+    Wipe*) # Wipe disk (MODE_FULL_WIPE)
       choice="$(config:show_disk_dialog --wipe)"
       FS_DISK="$choice"
       check:not_mounted "$FS_DISK"
-      FS_DO_FDISK=1
+      MODE_FULL_WIPE=1
+      FS_EFI="${FS_DISK}1"
+      FS_ROOT="${FS_DISK}2"
       INSTALL_GRUB=1
       FS_FORMAT_EFI=1
       FS_FORMAT_ROOT=1
       ;;
 
-    Use\ /mnt*)
+    Use\ /mnt*) # Use /mnt (MODE_USE_MNT)
       if ! sys:is_mnt_mounted; then quit:mnt_not_mounted; fi
       config:grub
-      FS_USE_MNT=1
+      MODE_USE_MNT=1
       FS_ROOT=""
       FS_EFI=""
       ;;
 
-    Choose*)
+    Choose*) # Use partitions (MODE_USE_PARTITIONS)
       choice="$(config:show_disk_dialog --format)"
+      MODE_USE_PARTITIONS=1
       FS_DISK="$choice"
 
       # Are the required partitions available?
@@ -644,7 +646,7 @@ disk:show_mnt_warning() {
 # Print disk strategy message
 disk:get_disk_strategy() {
   message=""
-  if [[ "$FS_DO_FDISK" == 1 ]]; then
+  if [[ "$MODE_FULL_WIPE" == 1 ]]; then
     message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
     message+="The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \ZbAll of its data will be erased.\Zn"
 
@@ -1035,7 +1037,7 @@ script:write() {
   script:write_start
   script:write_pre_hints
 
-  if [[ "$FS_DO_FDISK" == "1" ]]; then
+  if [[ "$MODE_FULL_WIPE" == "1" ]]; then
     script:write_fdisk
   fi
 
@@ -1107,7 +1109,7 @@ script:write_pacstrap() {
     echo ":: 'Enabling clock syncing via ntp'"
     echo "timedatectl set-ntp true"
     echo ''
-    if [[ "$FS_USE_MNT" == "1" ]]; then
+    if [[ "$MODE_USE_MNT" == "1" ]]; then
       echo ":: 'Using /mnt'"
       echo '# (Not mounting any drives, assuming /mnt is already available.)'
       echo ''
