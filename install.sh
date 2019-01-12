@@ -650,7 +650,9 @@ partitions:pick_partition_dialog() {
 disk_confirm:msg() {
   local heading="$1"
   local body="$2"
-  echo -n "\n\n── \Z4$heading\Zn\n"
+  echo -n "\n\n"
+  printf "── \Z4%s\Zn" "$heading"
+  echo -n "\n"
   echo -n "$body"
 }
 
@@ -932,12 +934,12 @@ Welcome to Arch Linux! Before we begin, let's go over a few things:
   dialog at the end of this process; nothing destructive will be
   done before that.
 
-- Press [Ctrl-C] at any time to exit this installer.
+- Press \ZbCtrl-C\Zn at any time to exit this installer.
 
 - Be sure to read the Arch Linux wiki. There's no substitute to
   understanding everything that's happening :)
 
-  $INSTALLER_URL
+  \Zb$INSTALLER_URL\Zn
   "
   ui:dialog \
     --colors \
@@ -1412,11 +1414,10 @@ quit:no_message() {
 
 quit:exit_msg() {
   clear
-  echo -e "\033[0;33m$INSTALLER_TITLE\033[0;m"
-  echo -e "\033[0;33m$(printf "%${COLUMNS}s" | tr ' ' '-')\033[0;m"
-  echo ""
+  printf '\e[0;33m%s\e[0;m\n' "$INSTALLER_TITLE"
+  printf '\e[0;33m%s\e[0;m\n\n' "$(printf "%${COLUMNS}s" | tr ' ' '-')"
   cat -
-  echo ""
+  echo ''
   exit 1
 }
 
