@@ -380,40 +380,6 @@ config:grub_dialog() {
     3>&1 1>&2 2>&3
 }
 
-# Pick Linux partition ($FS_ROOT)
-config:pick_root_partition() {
-  choice="$(config:show_partition_ui:dialog \
-    --add "$ADD_NEW_TAG" "...Add a new partition" \
-    "$FS_DISK" \
-    "Linux partition" \
-    "Choose partition to install Linux into:\n(This is usually an 'ext4' partition.)")"
-  if [[ "$choice" == "$ADD_NEW_TAG" ]]; then
-    quit:cfdisk "$FS_DISK"
-  else
-    FS_ROOT="$choice"
-  fi
-}
-
-# Pick EFI partition ($FS_EFI)
-config:pick_efi_partition() {
-  body="Choose partition to install the EFI boot loader into:"
-  subtext="This should be an EFI partition, typically a fat32."
-  choice="$(config:show_partition_ui:dialog \
-    --add "$ADD_NEW_TAG" "...Add a new partition" \
-    --add "$NO_BOOTLOADER" "...Don't install a boot loader" \
-    "$FS_DISK" \
-    "EFI Partition" \
-    "$body\n$subtext")"
-  if [[ "$choice" == "$NO_BOOTLOADER" ]]; then
-    FS_EFI=""
-  elif [[ "$choice" == "$ADD_NEW_TAG" ]]; then
-    quit:cfdisk "$FS_EFI"
-  else
-    INSTALL_GRUB=1
-    FS_EFI="$choice"
-  fi
-}
-
 config:show_disk_dialog() {
   pairs=()
   IFS=$'\n'
@@ -571,12 +537,10 @@ disk:config_strategy() {
       # TODO: auto-find efi partition
 
       # Pick other patitions
-      config:pick_root_partition
-      # TODO: format root
-      disk:validate_root_partition
+      partitions:pick_root
+      partitions:validate_root
 
-      config:pick_efi_partition
-      disk:format_efi_partition
+      # partitions:pick_efi - deprecate this!
 
       # Check them if they can be mounted;
       # exit if they can't be mounted
@@ -613,11 +577,6 @@ disk:ensure_valid() {
   fi
 }
 
-disk:validate_root_partition() {
-  # TODO: if it's not ext4, exit and say we don't support it
-  true
-}
-
 disk:format_efi_partition() {
   # TODO: ask the user if it should be formatted
   true
@@ -625,7 +584,55 @@ disk:format_efi_partition() {
 
 # }
 # -------------------------------------------------------------------------------
-# [disk_confirm:]
+# [partitions:] "Disk strategy" -> "Choose partitions" {
+# -------------------------------------------------------------------------------
+
+partition:lol () {
+  true
+}
+
+# Pick Linux partition ($FS_ROOT)
+partitions:pick_root() {
+  choice="$(config:show_partition_ui:dialog \
+    --add "$ADD_NEW_TAG" "...Add a new partition" \
+    "$FS_DISK" \
+    "Linux partition" \
+    "Choose partition to install Linux into:\n(This is usually an 'ext4' partition.)")"
+  if [[ "$choice" == "$ADD_NEW_TAG" ]]; then
+    quit:cfdisk "$FS_DISK"
+  else
+    FS_ROOT="$choice"
+  fi
+}
+
+partitions:validate_root() {
+  # TODO: if it's not ext4, exit and say we don't support it
+  true
+}
+
+# Pick EFI partition ($FS_EFI)
+partitions:pick_efi() {
+  body="Choose partition to install the EFI boot loader into:"
+  subtext="This should be an EFI partition, typically a fat32."
+  choice="$(config:show_partition_ui:dialog \
+    --add "$ADD_NEW_TAG" "...Add a new partition" \
+    --add "$NO_BOOTLOADER" "...Don't install a boot loader" \
+    "$FS_DISK" \
+    "EFI Partition" \
+    "$body\n$subtext")"
+  if [[ "$choice" == "$NO_BOOTLOADER" ]]; then
+    FS_EFI=""
+  elif [[ "$choice" == "$ADD_NEW_TAG" ]]; then
+    quit:cfdisk "$FS_EFI"
+  else
+    INSTALL_GRUB=1
+    FS_EFI="$choice"
+  fi
+}
+
+# }
+# -------------------------------------------------------------------------------
+# [disk_confirm:] Disk confirmation {
 # -------------------------------------------------------------------------------
 
 # "Review install strategy" dialog for /mnt
@@ -851,7 +858,7 @@ form:text_input() {
 
 # }
 # -------------------------------------------------------------------------------
-# [validate_partition:] "Validate partition" step {
+# [validate_partition:] Validation for 'partitions:' step {
 # -------------------------------------------------------------------------------
 
 # Inform the user why they'll be asked for a sudo password.
