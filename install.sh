@@ -402,49 +402,6 @@ config:show_disk_dialog() {
     3>&1 1>&2 2>&3
 }
 
-# Lets the user select a partition
-config:show_partition_dialog() {
-  local extra_pairs=()
-
-  while true; do
-    case "$1" in
-      --add)
-        extra_pairs+=("$2" "$3")
-        shift; shift; shift
-        ;;
-      *)
-        break ;;
-    esac
-  done
-
-  local disk="$1"
-  local title="$2"
-  local body="$3"
-  local pairs=()
-
-  # Add partition to `$pairs`
-  IFS=$'\n'
-  while read -r line; do
-    local FSTYPE
-    local SIZE
-    local LABEL
-    eval "$line"
-    label="$(printf "[%8s]  %s - %s" "$SIZE" "$FSTYPE" "${LABEL:-No label}")"
-    pairs+=("/dev/$NAME" "$label")
-  done <<< "$(sys:list_partitions "$disk")"
-
-  # shellcheck disable=SC2086
-  ui:dialog \
-    --title " $title " \
-    --no-cancel \
-    --ok-label "Next" \
-    --menu "\n$body\n " \
-    17 $WIDTH_SM 8 \
-    ${pairs[*]} \
-    ${extra_pairs[*]} \
-    3>&1 1>&2 2>&3
-}
-
 # }
 # [system:] "System config" step {
 
@@ -575,13 +532,9 @@ disk:format_efi_partition() {
 # }
 # [partitions:] "Disk strategy" -> "Choose partitions" {
 
-partition:lol () {
-  true
-}
-
 # Pick Linux partition ($FS_ROOT)
 partitions:pick_root() {
-  choice="$(config:show_partition_ui:dialog \
+  choice="$(partitions:pick_partition_dialog \
     --add "$ADD_NEW_TAG" "...Add a new partition" \
     "$FS_DISK" \
     "Linux partition" \
@@ -599,23 +552,66 @@ partitions:validate_root() {
 }
 
 # Pick EFI partition ($FS_EFI)
-partitions:pick_efi() {
-  body="Choose partition to install the EFI boot loader into:"
-  subtext="This should be an EFI partition, typically a fat32."
-  choice="$(config:show_partition_ui:dialog \
-    --add "$ADD_NEW_TAG" "...Add a new partition" \
-    --add "$NO_BOOTLOADER" "...Don't install a boot loader" \
-    "$FS_DISK" \
-    "EFI Partition" \
-    "$body\n$subtext")"
-  if [[ "$choice" == "$NO_BOOTLOADER" ]]; then
-    FS_EFI=""
-  elif [[ "$choice" == "$ADD_NEW_TAG" ]]; then
-    quit:cfdisk "$FS_EFI"
-  else
-    INSTALL_GRUB=1
-    FS_EFI="$choice"
-  fi
+# partitions:pick_efi() {
+#   body="Choose partition to install the EFI boot loader into:"
+#   subtext="This should be an EFI partition, typically a fat32."
+#   choice="$(partitions:pick_partition_dialog \
+#     --add "$ADD_NEW_TAG" "...Add a new partition" \
+#     --add "$NO_BOOTLOADER" "...Don't install a boot loader" \
+#     "$FS_DISK" \
+#     "EFI Partition" \
+#     "$body\n$subtext")"
+#   if [[ "$choice" == "$NO_BOOTLOADER" ]]; then
+#     FS_EFI=""
+#   elif [[ "$choice" == "$ADD_NEW_TAG" ]]; then
+#     quit:cfdisk "$FS_EFI"
+#   else
+#     INSTALL_GRUB=1
+#     FS_EFI="$choice"
+#   fi
+# }
+
+# Lets the user select a partition
+partitions:pick_partition_dialog() {
+  local extra_pairs=()
+
+  while true; do
+    case "$1" in
+      --add)
+        extra_pairs+=("$2" "$3")
+        shift; shift; shift
+        ;;
+      *)
+        break ;;
+    esac
+  done
+
+  local disk="$1"
+  local title="$2"
+  local body="$3"
+  local pairs=()
+
+  # Add partition to `$pairs`
+  IFS=$'\n'
+  while read -r line; do
+    local FSTYPE
+    local SIZE
+    local LABEL
+    eval "$line"
+    label="$(printf "[%8s]  %s - %s" "$SIZE" "$FSTYPE" "${LABEL:-No label}")"
+    pairs+=("/dev/$NAME" "$label")
+  done <<< "$(sys:list_partitions "$disk")"
+
+  # shellcheck disable=SC2086
+  ui:dialog \
+    --title " $title " \
+    --no-cancel \
+    --ok-label "Next" \
+    --menu "\n$body\n " \
+    17 $WIDTH_SM 8 \
+    ${pairs[*]} \
+    ${extra_pairs[*]} \
+    3>&1 1>&2 2>&3
 }
 
 # }
