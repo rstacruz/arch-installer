@@ -93,6 +93,7 @@ main() {
   app:infer_defaults
   app:parse_options "$@"
 
+  # Perform sanity checks
   if [[ "$SKIP_SANITY_CHECK" != 1 ]]; then
     check:ensure_pacman
     check:ensure_available_utils
@@ -104,22 +105,20 @@ main() {
     check:ensure_hostname
   fi
 
+  # Show welcome dialog
   if [[ "$SKIP_WELCOME" != 1 ]]; then
     welcome:show_dialog
   fi
 
-  # Configure the disk first
+  # Configure the disk first. This will set the MODE_* values.
   disk:config_strategy
+  disk:ensure_valid
 
-  # (FS_ROOT will be blank if /mnt is to be used.)
-  if [[ "$MODE_USE_MNT" == "0" ]] && [[ "$FS_ROOT" == "$FS_EFI" ]]; then
-    quit:invalid_partition_selection
-  fi
-
+  # Show disk confirmation
   if [[ "$MODE_USE_MNT" == 1 ]]; then
-    disk:show_mnt_warning
+    disk_confirm:confirm_mnt
   else
-    disk:confirm_strategy
+    disk_confirm:confirm
   fi
 
   # Configure locales and such
@@ -546,8 +545,8 @@ disk:config_strategy() {
       FS_DISK="$choice"
       check:not_mounted "$FS_DISK"
       MODE_FULL_WIPE=1
-      FS_EFI="${FS_DISK}1"
-      FS_ROOT="${FS_DISK}2"
+      FS_EFI="$FS_DISK"1
+      FS_ROOT="$FS_DISK"2
       INSTALL_GRUB=1
       FS_FORMAT_EFI=1
       FS_FORMAT_ROOT=1
@@ -607,8 +606,30 @@ disk:choose_strategy_dialog() {
     3>&1 1>&2 2>&3
 }
 
+disk:ensure_valid() {
+  # (FS_ROOT will be blank if /mnt is to be used.)
+  if [[ "$MODE_USE_PARTITIONS" == "1" ]] && [[ "$FS_ROOT" == "$FS_EFI" ]]; then
+    quit:invalid_partition_selection
+  fi
+}
+
+disk:validate_root_partition() {
+  # TODO: if it's not ext4, exit and say we don't support it
+  true
+}
+
+disk:format_efi_partition() {
+  # TODO: ask the user if it should be formatted
+  true
+}
+
+# }
+# -------------------------------------------------------------------------------
+# [disk_confirm:]
+# -------------------------------------------------------------------------------
+
 # "Review install strategy" dialog for /mnt
-disk:show_mnt_warning() {
+disk_confirm:confirm_mnt() {
   message=""
   message+="Please review the installation strategy:"
   message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
@@ -643,8 +664,30 @@ disk:show_mnt_warning() {
   if [[ "$?" != "0" ]]; then quit:no_message; fi
 }
 
+# Show the user what's about to happen
+disk_confirm:confirm() {
+  message=""
+  message+="These operations will be done to your disk:"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
+  message+="$(disk_confirm:get_strategy)"
+  message+="\n"
+  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
+  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit. None of these operations will be done until the final step."
+
+  ui:dialog \
+    --colors \
+    --title " Review " \
+    --ok-label "Next" \
+    --msgbox "$message" \
+    23 $WIDTH_MD \
+    3>&1 1>&2 2>&3
+
+  # shellcheck disable=SC2181
+  if [[ "$?" != "0" ]]; then quit:no_message; fi
+}
+
 # Print disk strategy message
-disk:get_disk_strategy() {
+disk_confirm:get_strategy() {
   message=""
   if [[ "$MODE_FULL_WIPE" == 1 ]]; then
     message+="\n\n\Zb\Z3Wipe $FS_DISK (!)\Zn\n"
@@ -678,37 +721,6 @@ disk:get_disk_strategy() {
   echo "$message"
 }
 
-# Show the user what's about to happen
-disk:confirm_strategy() {
-  message=""
-  message+="These operations will be done to your disk:"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-  message+="$(disk:get_disk_strategy)"
-  message+="\n"
-  message+="\n\Z1───────────────────────────────────────────────────────────────────\Zn"
-  message+="\nPress \ZbNext\Zn and we'll continue configuring your installation, or \Zbctrl-c\Zn to exit. None of these operations will be done until the final step."
-
-  ui:dialog \
-    --colors \
-    --title " Review " \
-    --ok-label "Next" \
-    --msgbox "$message" \
-    23 $WIDTH_MD \
-    3>&1 1>&2 2>&3
-
-  # shellcheck disable=SC2181
-  if [[ "$?" != "0" ]]; then quit:no_message; fi
-}
-
-disk:validate_root_partition() {
-  # TODO: if it's not ext4, exit and say we don't support it
-  true
-}
-
-disk:format_efi_partition() {
-  # TODO: ask the user if it should be formatted
-  true
-}
 
 # }
 # -------------------------------------------------------------------------------
