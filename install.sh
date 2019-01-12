@@ -473,19 +473,18 @@ disk:config_strategy() {
       choice="$(config:show_disk_dialog --format)"
       MODE_USE_PARTITIONS=1
       FS_DISK="$choice"
+      # Always format root in this mode!
+      FS_FORMAT_ROOT=1
 
       # Are the required partitions available?
       check:ensure_valid_partitions "$FS_DISK"
 
-      # Auto-find efi partition
+      # Auto-find efi partition; sets FS_EFI
       partitions:auto_find_efi
 
       # Pick other patitions
       partitions:pick_root
       partitions:validate_root
-
-      # Always format root when done this way
-      FS_FORMAT_ROOT=1
 
       # TODO: Ask if we are going to INSTALL_GRUB=1
       INSTALL_GRUB=1
