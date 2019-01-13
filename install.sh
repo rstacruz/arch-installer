@@ -573,26 +573,6 @@ partitions:validate_root() {
   true
 }
 
-# Pick EFI partition ($FS_EFI)
-# partitions:pick_efi() {
-#   body="Choose partition to install the EFI boot loader into:"
-#   subtext="This should be an EFI partition, typically a fat32."
-#   choice="$(partitions:pick_partition_dialog \
-#     --add "$ADD_NEW_TAG" "...Add a new partition" \
-#     --add "$NO_BOOTLOADER" "...Don't install a boot loader" \
-#     "$FS_DISK" \
-#     "EFI Partition" \
-#     "$body\n$subtext")"
-#   if [[ "$choice" == "$NO_BOOTLOADER" ]]; then
-#     FS_EFI=""
-#   elif [[ "$choice" == "$ADD_NEW_TAG" ]]; then
-#     quit:cfdisk "$FS_EFI"
-#   else
-#     INSTALL_GRUB=1
-#     FS_EFI="$choice"
-#   fi
-# }
-
 # Lets the user select a partition
 partitions:pick_partition_dialog() {
   local extra_pairs=()
