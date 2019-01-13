@@ -26,8 +26,8 @@ set_defaults() {
   MODE_USE_PARTITIONS=0
 
   # How modern is your system?
-  PARTITION_TYPE="${PARTITION_TYPE:-gpt}" # 'dos' or 'gpt'
-  BOOT_MODE="${BOOT_MODE:-efi}" # 'bios' or 'efi'
+  PARTITION_TYPE="gpt"  # 'dos' or 'gpt'
+  BOOT_MODE="efi"  # 'bios' or 'efi'
 
   # Format the ESP partition?
   FS_FORMAT_EFI=0
@@ -1299,8 +1299,25 @@ script:write_end() {
 
 # Recipe for setting up grub
 recipes:setup_grub() {
+  if [[ "$BOOT_MODE" == "efi" ]]; then
+    recipes:setup_grub_efi
+  else
+    recipes:setup_grub_bios
+  fi
+}
+
+recipes:setup_grub_bios() {
   echo ''
-  echo ":: 'Installing GRUB boot loader'"
+  echo ":: 'Installing GRUB boot loader for BIOS mode'"
+  echo "arch-chroot /mnt sh <<END"
+  echo "  pacman -Syu --noconfirm grub"
+  echo "  grub-install $FS_DISK"
+  echo "  grub-mkconfig -o $ESP_PATH/grub/grub.cfg"
+  echo "END"
+}
+recipes:setup_grub_efi() {
+  echo ''
+  echo ":: 'Installing GRUB boot loader for EFI mode'"
   echo "arch-chroot /mnt sh <<END"
   echo "  pacman -Syu --noconfirm grub efibootmgr"
   echo "  grub-install --target=x86_64-efi --efi-directory=$ESP_PATH --bootloader-id=GRUB"
