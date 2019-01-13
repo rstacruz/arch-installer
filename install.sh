@@ -1689,12 +1689,12 @@ sys:list_locales() {
 }
 
 # Check if a disk has a given partition of given type.
-#
-#     if sys:disk_has_partition /dev/sda1 ext4;
-#       echo "The disk has an ext4 partition."
-#     fi
-#
 sys:disk_has_partition() {
+  #
+  #     if sys:disk_has_partition /dev/sda1 ext4;
+  #       echo "The disk has an ext4 partition."
+  #     fi
+  #
   disk="$1"
   fstype="$2"
   lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
@@ -1704,21 +1704,21 @@ sys:disk_has_partition() {
     &>/dev/null
 }
 
-# Return 0 if we're root, 1 otherwise
-#
-#     if sys:am_i_root; then
-#       echo "I'm root"
-#     fi
-#
+# Return 0 if we're root, 1 otherwise.
 sys:am_i_root() {
+  #
+  #     if sys:am_i_root; then
+  #       echo "I'm root"
+  #     fi
+  #
   [[ "$(id -u)" == "0" ]]
 }
 
 # Run something as a superuser
-#
-#     sys:sudo cfdisk
-#
 sys:sudo() {
+  #
+  #     sys:sudo cfdisk
+  #
   local cmd="$1"
   if sys:am_i_root; then
     $cmd
@@ -1731,21 +1731,22 @@ sys:sudo() {
   fi
 }
 
-# Dev helpers: List available drives
-#
-#     sys:list_drives
-#     # => NAME="sda" SIZE="883GB"
+# Print available drives.
 sys:list_drives() {
+  #
+  #     sys:list_drives
+  #     # => NAME="sda" SIZE="883GB"
+  #
   # NAME="sda" SIZE="883GB"
   lsblk -I 8 -o "NAME,SIZE" -P -d
 }
 
-# Dev helpers: List available partitions.
-#
-#     sys:list_partitions
-#     #=> NAME="sda1" SIZE="250GB" ...
-#
+# Print available partitions for a given `drive ($1)`.
 sys:list_partitions() {
+  #
+  #     sys:list_partitions
+  #     #=> NAME="sda1" SIZE="250GB" ...
+  #
   disk="$1"
   # NAME="sda1" SIZE="883GB"
   lsblk -I 8 -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
@@ -1753,24 +1754,24 @@ sys:list_partitions() {
     | grep "$(basename "$disk")"
 }
 
-# Returns the prmary locale based on $PRIMARY_LOCALE.
-#
-#     echo $(sys:get_primary_locale)
-#     #=> "en_US.UTF-8"
-#
+# Prints the prmary locale based on $PRIMARY_LOCALE.
 sys:get_primary_locale() {
-  # "en_US.UTF-8 UTF-8" -> "en_US.UTF-8"
+  #
+  #     # Converts "en_US.UTF-8 UTF-8" -> "en_US.UTF-8"
+  #     echo $(sys:get_primary_locale)
+  #     #=> "en_US.UTF-8"
+  #
   local str="${PRIMARY_LOCALE[0]}"
   echo "${str% *}"
 }
 
 # Checks if /mnt is mounted. Returns non-zero if not.
-#
-#     if sys:is_mnt_mounted; then
-#       echo "/mnt is available right now"
-#     fi
-#
 sys:is_mnt_mounted() {
+  #
+  #     if sys:is_mnt_mounted; then
+  #       echo "/mnt is available right now"
+  #     fi
+  #
   if [[ "$SKIP_MNT_CHECK" == 1 ]]; then return; fi
 
   # Grep returns non-zero if it's not found
@@ -1778,11 +1779,11 @@ sys:is_mnt_mounted() {
 }
 
 # Gets partition info as a string.
-#
-#     echo $(sys:partition_info "/dev/sda1")
-#     #=> "/dev/sda1 (250G ext4)"
-#
 sys:partition_info() {
+  #
+  #     echo $(sys:partition_info "/dev/sda1")
+  #     #=> "/dev/sda1 (250G ext4)"
+  #
   local partition="$1"
   NAME=""
   eval "$(lsblk -o "NAME,SIZE,TYPE,FSTYPE,LABEL" -P \
