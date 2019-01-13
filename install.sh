@@ -1754,7 +1754,7 @@ sys:list_partitions() {
     | grep "$(basename "$disk")"
 }
 
-# Prints the prmary locale based on $PRIMARY_LOCALE.
+# Prints the prmary locale based on `$PRIMARY_LOCALE`.
 sys:get_primary_locale() {
   #
   #     # Converts "en_US.UTF-8 UTF-8" -> "en_US.UTF-8"
