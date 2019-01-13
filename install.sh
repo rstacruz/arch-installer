@@ -62,6 +62,9 @@ set_defaults() {
 
   # Where to write the script
   SCRIPT_FILE="$HOME/arch_installer.sh"
+
+  # Set to non-zero to see some messages
+  DIALOG_DELAY="${DIALOG_DELAY:-0}"
 }
 
 # Set global constants
@@ -344,7 +347,14 @@ config:recipes_dialog() {
 
 # Config: ask if GRUB should be installed
 config:grub() {
-  choice="$(config:grub_dialog)"
+  local choice=""
+  if [[ "$MODE_USE_MNT" == "1" ]]; then
+    choice="$(config:grub_dialog "/mnt/boot")"
+  elif [[ -n "$FS_EFI" ]]; then
+    choice="$(config:grub_dialog "$(sys:partition_info "$FS_EFI")")"
+  else
+    quit:raise "config:grub() doesn't know what to do"
+  fi
   case "$choice" in
     Install*) INSTALL_GRUB=1 ;;
     *) INSTALL_GRUB=0 ;;
@@ -353,9 +363,10 @@ config:grub() {
 
 # Config: ask if GRUB should be installed (dialog)
 config:grub_dialog() {
+  local dest="$1"
   message=""
   message+="\n"
-  message+="Install GRUB bootloader to \Zb/mnt/boot\Zn?"
+  message+="Install GRUB bootloader to \Zb$dest\Zn?"
   message+="\n\n"
   message+="A bootloader is required to boot your new Arch Linux installation. "
   message+="You can skip this now, but you'll have to set it up manually later."
@@ -466,8 +477,8 @@ disk:config_strategy() {
     Use\ /mnt*) # Use /mnt (MODE_USE_MNT)
       if ! sys:is_mnt_mounted; then quit:mnt_not_mounted; fi
       # Ask if we are going to install grub (INSTALL_GRUB)
-      config:grub
       MODE_USE_MNT=1
+      config:grub
       FS_ROOT=""
       FS_EFI=""
       ;;
@@ -537,9 +548,6 @@ partitions:auto_find_efi() {
   if [[ -z "$partition" ]]; then
     quit:no_efi_partition_found
   fi
-
-  # TODO: notify the user in a prettier way
-  ui:dialog --msgbox "EFI partition is $partition" 8 40
 
   FS_EFI="$partition"
 }
@@ -1407,6 +1415,7 @@ app:parse_options() {
       SKIP_SANITY_CHECK=1
       SKIP_PARTITION_MOUNT_CHECK=1
       SKIP_VFAT_CHECK=1
+      DIALOG_DELAY=0.5
       ;;
     --skip-archiso-check) SKIP_ARCHISO_CHECK=1 ;;
     --skip-ext4-check) SKIP_EXT4_CHECK=1 ;;
@@ -1457,6 +1466,13 @@ quit:exit_msg() {
   cat -
   echo ''
   exit 1
+}
+
+quit:raise() {
+  local msg="$1"
+  quit:exit_msg <<END
+  Can't continue: $msg
+END
 }
 
 quit:no_efi_partition_found() {
@@ -1860,6 +1876,10 @@ ui:arch_logo() {
 #    ui:dialog --yesno "Work?" 4 40
 #
 ui:dialog() {
+  if [[ "$DIALOG_DELAY" != "0" ]]; then
+    sleep "$DIALOG_DELAY"
+  fi
+
   command dialog \
     --no-collapse \
     --backtitle "$INSTALLER_TITLE (press [Ctrl-C] to exit)" \
