@@ -119,9 +119,6 @@ main() {
   disk:config_strategy
   disk:ensure_valid
 
-  # Show disk confirmation
-  # disk_confirm:confirm
-
   # Configure locales and such
   config:system
 
@@ -618,26 +615,6 @@ partitions:pick_partition_dialog() {
 
 # }
 # [disk_confirm:] Disk confirmation {
-
-# Show the user what's about to happen
-# disk_confirm:confirm() {
-#   message=""
-#   message+="Please review these operations that will be done, "
-#   message+="or press \ZbCtrl-C\Zn to abort. (None of these will be done until the final step.)"
-#   message+="$(disk_confirm:get_strategy)"
-#   message+="\n"
-
-#   ui:dialog \
-#     --colors \
-#     --title " Review " \
-#     --ok-label "Next" \
-#     --msgbox "$message" \
-#     23 $WIDTH_MD \
-#     3>&1 1>&2 2>&3
-
-#   # shellcheck disable=SC2181
-#   if [[ "$?" != "0" ]]; then quit:no_message; fi
-# }
 
 disk_confirm:msg() {
   local heading="$1"
