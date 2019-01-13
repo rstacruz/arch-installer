@@ -25,7 +25,9 @@ set_defaults() {
   MODE_FULL_WIPE=0
   MODE_USE_PARTITIONS=0
 
-  PARTITION_TYPE="${PARTITION_TYPE:-efi}"
+  # How modern is your system?
+  PARTITION_TYPE="${PARTITION_TYPE:-gpt}" # 'dos' or 'gpt'
+  BOOT_MODE="${BOOT_MODE:-efi}" # 'bios' or 'efi'
 
   # Format the ESP partition?
   FS_FORMAT_EFI=0
@@ -693,7 +695,7 @@ disk_confirm:get_strategy() {
   if [[ "$MODE_FULL_WIPE" == 1 ]]; then
     disk_confirm:msg \
       "Install mode: Full wipe\Zb $FS_DISK" \
-      "The entire disk will be wiped. It will be initialized with a fresh, new \ZbGPT\Zn partition table. \Z1All of its data will be erased.\Zn"
+      "The entire disk will be wiped. It will be initialized with a fresh, new \Zb$PARTITION_TYPE\Zn partition table. \Z1All of its data will be erased.\Zn"
 
     disk_confirm:msg \
       "Create new EFI partition\Zb $FS_EFI" \
@@ -1056,8 +1058,8 @@ script:write() {
   script:write_pre_hints
 
   if [[ "$MODE_FULL_WIPE" == "1" ]]; then
-    if [[ "$PARTITION_TYPE" == "efi" ]]; then
-      script:write_fdisk_efi
+    if [[ "$PARTITION_TYPE" == "gpt" ]]; then
+      script:write_fdisk_gpt
     elif [[ "$PARTITION_TYPE" == "dos" ]]; then
       script:write_fdisk_dos
     fi
@@ -1097,7 +1099,7 @@ EOF
   echo '' >> "$SCRIPT_FILE"
 }
 
-script:write_fdisk_efi() {
+script:write_fdisk_gpt() {
   (
     echo ":: 'Wiping disk ($FS_DISK)'"
     echo "("
