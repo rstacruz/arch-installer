@@ -26,7 +26,7 @@ set_defaults() {
   MODE_USE_PARTITIONS=0
 
   # How modern is your system?
-  PARTITION_TYPE="gpt"  # 'dos' or 'gpt'
+  PARTITION_TYPE="gpt"  # 'dos' or 'gpt' or '' (if disk is empty)
   BOOT_MODE="efi"  # 'bios' or 'efi'
 
   # Format the ESP partition?
@@ -204,6 +204,19 @@ check:not_mounted() {
   local disk="$1"
   if findmnt -o SOURCE | grep "$disk" &>/dev/null; then
     quit:disk_is_mounted "$disk"
+  fi
+}
+
+# }
+# [boot_mode:] {
+  
+# TODO
+boot_mode:set_boot_mode() {
+  if sys:is_efi; then
+    BOOT_MODE="efi"
+  else
+    # TODO: warn you're not in efi mode
+    BOOT_MODE="bios"
   fi
 }
 
@@ -1691,6 +1704,11 @@ quit:no_vfat() {
 
 # }
 # [sys:] System utilities {
+
+# Return true if we're in EFI mode
+sys:is_efi() {
+  [[ -d /sys/firmware/efi/efivars ]]
+}
 
 # Check if a disk is gpt
 sys:is_disk_gpt() {
