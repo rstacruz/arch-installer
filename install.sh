@@ -25,6 +25,8 @@ set_defaults() {
   MODE_FULL_WIPE=0
   MODE_USE_PARTITIONS=0
 
+  PARTITION_TYPE="${PARTITION_TYPE:-efi}"
+
   # Format the ESP partition?
   FS_FORMAT_EFI=0
   FS_FORMAT_ROOT=0
@@ -1046,7 +1048,11 @@ script:write() {
   script:write_pre_hints
 
   if [[ "$MODE_FULL_WIPE" == "1" ]]; then
-    script:write_fdisk
+    if [[ "$PARTITION_TYPE" == "efi" ]]; then
+      script:write_fdisk_efi
+    elif [[ "$PARTITION_TYPE" == "dos" ]]; then
+      script:write_fdisk_dos
+    fi
   fi
 
   script:write_pacstrap
@@ -1083,11 +1089,11 @@ EOF
   echo '' >> "$SCRIPT_FILE"
 }
 
-script:write_fdisk() {
+script:write_fdisk_efi() {
   (
     echo ":: 'Wiping disk ($FS_DISK)'"
     echo "("
-    echo "  echo g      # Clear everything and start as GPT"
+    echo "  echo g      # Clear everything and start a GPT partition table"
     echo "  echo w      # Write and save"
     echo ") | fdisk $FS_DISK"
     echo ""
@@ -1099,6 +1105,36 @@ script:write_fdisk() {
     echo "  echo +250M  # .. last sector"
     echo "  echo t      # Change type"
     echo "  echo 1      # .. type = 1 (EFI)"
+    echo "  echo n      # New partition"
+    echo "  echo 2      # .. partition number = 1"
+    echo "  echo ''     # .. start sector = default"
+    echo "  echo ''     # .. last sector = default"
+    echo "  echo t      # Change type"
+    echo "  echo 2      # .. partition number = 2"
+    echo "  echo 20     # .. Linux filesystem"
+    echo "  echo w      # Write and save"
+    echo ") | fdisk $FS_DISK"
+    echo ''
+  ) >> "$SCRIPT_FILE"
+}
+
+script:write_fdisk_dos() {
+  (
+    echo ":: 'Wiping disk ($FS_DISK)'"
+    echo "("
+    echo "  echo o      # Clear everything and start a DOS partition table"
+    echo "  echo w      # Write and save"
+    echo ") | fdisk $FS_DISK"
+    echo ""
+    echo ":: 'Creating partitions in $FS_DISK'"
+    echo "("
+    echo "  echo n      # New partition"
+    echo "  echo p      # .. partition type = primary"
+    echo "  echo 1      # .. partition number = 1"
+    echo "  echo ''     # .. start sector = default"
+    echo "  echo +1M    # .. last sector"
+    echo "  echo t      # Change partition type"
+    echo "  echo ef     # .. partition type = ef (EFI)"
     echo "  echo n      # New partition"
     echo "  echo 2      # .. partition number = 1"
     echo "  echo ''     # .. start sector = default"
@@ -1312,6 +1348,7 @@ recipes:install_yay() {
   echo "END"
 }
 
+# Install `network-manager`
 recipes:install_network_manager() {
   echo ''
   echo ":: 'Setting up network manager'"
@@ -1321,6 +1358,7 @@ recipes:install_network_manager() {
   echo "END"
 }
 
+# Install `systemd-swap`
 recipes:install_systemd_swap() {
   echo ''
   echo ":: 'Setting up systemd-swap'"
