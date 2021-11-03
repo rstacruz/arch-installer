@@ -1,3 +1,7 @@
+**Archived:** Arch Linux now comes with a [guided installer.](https://wiki.archlinux.org/title/Archinstall).
+
+---
+
 <p align='center'>
 <br><img src='./docs/images/screencast.gif' width='500'><br>
 </p>
